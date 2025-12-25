@@ -11,6 +11,8 @@ html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* 防止 iOS 双击缩放 */
+  touch-action: manipulation;
 }
 
 body {
@@ -19,6 +21,10 @@ body {
   line-height: var(--line-height-normal);
   color: var(--color-text-primary);
   background-color: var(--color-bg-primary);
+  /* 防止 iOS 橡皮筋效果 */
+  overscroll-behavior: none;
+  /* 安全区域适配 */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 a {
@@ -33,11 +39,15 @@ a:hover {
 button {
   font-family: inherit;
   cursor: pointer;
+  /* 移动端触摸优化 */
+  -webkit-tap-highlight-color: transparent;
 }
 
 input, textarea, select {
   font-family: inherit;
   font-size: inherit;
+  /* 防止 iOS 输入框缩放 */
+  font-size: max(16px, 1rem);
 }
 
 /* Scrollbar Styles */
@@ -95,7 +105,17 @@ input, textarea, select {
 
 @media (max-width: 768px) {
   :root {
-    --sidebar-width: 100%;
+    --sidebar-width: 85%;
     --note-list-width: 100%;
+  }
+  
+  /* 移动端隐藏滚动条 */
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+  
+  body {
+    padding: 0;
   }
 }

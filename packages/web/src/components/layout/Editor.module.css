@@ -422,62 +422,120 @@
   
   .header {
     padding: var(--spacing-3) var(--spacing-4);
+    padding-top: max(var(--spacing-3), env(safe-area-inset-top));
   }
   
   .titleInput {
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-lg);
   }
   
   .toolbar {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: var(--spacing-1);
   }
   
   .toolbarButton {
-    width: 32px;
-    height: 32px;
-    font-size: var(--font-size-base);
+    width: 40px;
+    height: 40px;
+    font-size: var(--font-size-lg);
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .toolbarButton:active {
+    background-color: var(--color-bg-tertiary);
   }
   
   .backButton {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     background: none;
     border: none;
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-xl);
     color: var(--color-text-secondary);
     cursor: pointer;
     border-radius: var(--radius-md);
     margin-right: var(--spacing-2);
+    -webkit-tap-highlight-color: transparent;
   }
   
-  .backButton:hover {
+  .backButton:active {
     background-color: var(--color-bg-tertiary);
   }
   
   .meta {
     padding: var(--spacing-2) var(--spacing-4);
     flex-wrap: wrap;
+    font-size: var(--font-size-xs);
+  }
+  
+  .editorContent {
+    flex: 1;
+    min-height: 0;
   }
   
   .content {
     padding: var(--spacing-4);
+    font-size: var(--font-size-base);
+    padding-bottom: max(var(--spacing-4), env(safe-area-inset-bottom));
   }
   
   .preview {
     padding: var(--spacing-4);
+    padding-bottom: max(var(--spacing-4), env(safe-area-inset-bottom));
   }
   
   .moreMenu {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
     right: 0;
-    left: auto;
+    min-width: 100%;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding: var(--spacing-2);
+    padding-bottom: max(var(--spacing-4), env(safe-area-inset-bottom));
+  }
+  
+  .menuItem {
+    padding: var(--spacing-4);
+    font-size: var(--font-size-base);
+    justify-content: center;
   }
 
-  /* On mobile, split mode shows tabs instead */
-  .editorContent.split {
+  /* On mobile, split mode shows only edit */
+  .editorContent.split .preview {
+    display: none;
+  }
+  
+  .editorContent.split .content {
+    flex: 1;
+  }
+  
+  /* Locked content mobile */
+  .lockedContent {
+    padding: var(--spacing-4);
+  }
+  
+  .lockIcon {
+    font-size: 48px;
+  }
+  
+  .unlockForm {
     flex-direction: column;
+    gap: var(--spacing-3);
+  }
+  
+  .unlockInput {
+    padding: var(--spacing-4);
+    font-size: var(--font-size-base);
+  }
+  
+  .unlockButton {
+    padding: var(--spacing-4);
+    font-size: var(--font-size-base);
   }
 }
 

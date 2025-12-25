@@ -2,17 +2,36 @@
  * 同步状态指示器
  */
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSyncStore } from '../../stores/sync-store';
-import { useTranslation } from 'react-i18next';
+import { useI18n } from '../../i18n';
+import { addSyncListener, isSyncInProgress, SyncResult } from '../../services/incremental-sync';
 import styles from './SyncIndicator.module.css';
 
 export function SyncIndicator() {
-  const { t } = useTranslation();
+  const { t } = useI18n();
   const { status, lastSyncTime } = useSyncStore();
   const [showTooltip, setShowTooltip] = useState(false);
+  const [incrementalSyncing, setIncrementalSyncing] = useState(false);
+  const [lastIncrementalSync, setLastIncrementalSync] = useState<number | null>(null);
+
+  // 监听增量同步状态
+  useEffect(() => {
+    const unsubscribe = addSyncListener((result: SyncResult) => {
+      setIncrementalSyncing(false);
+      if (result.success) {
+        setLastIncrementalSync(Date.now());
+      }
+    });
+
+    // 检查初始状态
+    setIncrementalSyncing(isSyncInProgress());
+
+    return unsubscribe;
+  }, []);
 
   const getStatusIcon = () => {
+    if (incrementalSyncing) return '🔄';
     switch (status) {
       case 'connected':
         return '🟢';
@@ -30,6 +49,7 @@ export function SyncIndicator() {
   };
 
   const getStatusText = () => {
+    if (incrementalSyncing) return t('settings.syncing');
     switch (status) {
       case 'connected':
         return t('sync.connected');
@@ -47,21 +67,22 @@ export function SyncIndicator() {
   };
 
   const formatLastSync = () => {
-    if (!lastSyncTime) return t('sync.neverSynced');
+    const syncTime = lastIncrementalSync || lastSyncTime;
+    if (!syncTime) return t('settings.neverSynced');
     
     const now = Date.now();
-    const diff = now - lastSyncTime;
+    const diff = now - syncTime;
     
     if (diff < 60000) {
       return t('sync.justNow');
     } else if (diff < 3600000) {
       const minutes = Math.floor(diff / 60000);
-      return t('sync.minutesAgo', { count: minutes });
+      return `${minutes} ${t('sync.minutesAgo')}`;
     } else if (diff < 86400000) {
       const hours = Math.floor(diff / 3600000);
-      return t('sync.hoursAgo', { count: hours });
+      return `${hours} ${t('sync.hoursAgo')}`;
     } else {
-      return new Date(lastSyncTime).toLocaleString();
+      return new Date(syncTime).toLocaleString();
     }
   };
 
@@ -81,7 +102,7 @@ export function SyncIndicator() {
             <span>{getStatusText()}</span>
           </div>
           <div className={styles.tooltipRow}>
-            <span>{t('sync.lastSync')}:</span>
+            <span>{t('settings.lastSync')}:</span>
             <span>{formatLastSync()}</span>
           </div>
         </div>

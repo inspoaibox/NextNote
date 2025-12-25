@@ -3,7 +3,7 @@
  */
 
 const DB_NAME = 'secure-notebook';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // 升级版本以支持新字段
 
 export interface DBSchema {
   notes: {
@@ -13,6 +13,7 @@ export interface DBSchema {
       'by-folder': string;
       'by-updated': number;
       'by-pinned': number;
+      'by-sync-version': number;
     };
   };
   folders: {
@@ -21,6 +22,7 @@ export interface DBSchema {
     indexes: {
       'by-parent': string;
       'by-order': number;
+      'by-sync-version': number;
     };
   };
   keystore: {
@@ -48,6 +50,10 @@ export interface DBSchema {
       'by-timestamp': number;
     };
   };
+  syncConfig: {
+    key: string;
+    value: SyncConfigRecord;
+  };
 }
 
 export interface LocalNoteRecord {
@@ -62,9 +68,15 @@ export interface LocalNoteRecord {
   syncVersion: number;
   localVersion: number;
   isDirty: boolean;
+  lastModifiedDeviceId: string | null;
   createdAt: number;
   updatedAt: number;
   isDeleted: boolean;
+  deletedAt: number | null;
+  // 加密相关
+  encryptedTitle?: string;
+  encryptedContent?: string;
+  encryptedDEK?: string;
 }
 
 export interface LocalFolderRecord {
@@ -74,10 +86,15 @@ export interface LocalFolderRecord {
   order: number;
   hasPassword: boolean;
   syncVersion: number;
+  localVersion: number;
   isDirty: boolean;
+  lastModifiedDeviceId: string | null;
   createdAt: number;
   updatedAt: number;
   isDeleted: boolean;
+  deletedAt: number | null;
+  // 加密相关
+  encryptedName?: string;
 }
 
 export interface KeyStoreRecord {
@@ -113,6 +130,22 @@ export interface SyncQueueRecord {
   retryCount: number;
 }
 
+export interface SyncConfigRecord {
+  id: string; // 'default'
+  syncTarget: 'none' | 'server' | 'webdav';
+  syncInterval: number; // minutes: 1,2,3,5,10,30,60
+  webdavUrl: string | null;
+  webdavUsername: string | null;
+  webdavPassword: string | null; // encrypted
+  serverUrl: string | null;
+  serverUsername: string | null;
+  serverPassword: string | null; // encrypted
+  lastSyncAt: number | null;
+  lastSyncVersion: number;
+  isEnabled: boolean;
+  deviceId: string; // 当前设备唯一标识
+}
+
 let dbInstance: IDBDatabase | null = null;
 
 /**
@@ -137,6 +170,7 @@ export function openDatabase(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion;
       
       // Notes store
       if (!db.objectStoreNames.contains('notes')) {
@@ -144,6 +178,16 @@ export function openDatabase(): Promise<IDBDatabase> {
         notesStore.createIndex('by-folder', 'folderId', { unique: false });
         notesStore.createIndex('by-updated', 'updatedAt', { unique: false });
         notesStore.createIndex('by-pinned', 'pinnedAt', { unique: false });
+        notesStore.createIndex('by-sync-version', 'syncVersion', { unique: false });
+      } else if (oldVersion < 2) {
+        // 升级: 添加 syncVersion 索引
+        const transaction = (event.target as IDBOpenDBRequest).transaction;
+        if (transaction) {
+          const notesStore = transaction.objectStore('notes');
+          if (!notesStore.indexNames.contains('by-sync-version')) {
+            notesStore.createIndex('by-sync-version', 'syncVersion', { unique: false });
+          }
+        }
       }
 
       // Folders store
@@ -151,6 +195,15 @@ export function openDatabase(): Promise<IDBDatabase> {
         const foldersStore = db.createObjectStore('folders', { keyPath: 'id' });
         foldersStore.createIndex('by-parent', 'parentId', { unique: false });
         foldersStore.createIndex('by-order', 'order', { unique: false });
+        foldersStore.createIndex('by-sync-version', 'syncVersion', { unique: false });
+      } else if (oldVersion < 2) {
+        const transaction = (event.target as IDBOpenDBRequest).transaction;
+        if (transaction) {
+          const foldersStore = transaction.objectStore('folders');
+          if (!foldersStore.indexNames.contains('by-sync-version')) {
+            foldersStore.createIndex('by-sync-version', 'syncVersion', { unique: false });
+          }
+        }
       }
 
       // Keystore
@@ -174,6 +227,11 @@ export function openDatabase(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('syncQueue')) {
         const syncStore = db.createObjectStore('syncQueue', { keyPath: 'id' });
         syncStore.createIndex('by-timestamp', 'timestamp', { unique: false });
+      }
+
+      // Sync config (新增)
+      if (!db.objectStoreNames.contains('syncConfig')) {
+        db.createObjectStore('syncConfig', { keyPath: 'id' });
       }
     };
   });

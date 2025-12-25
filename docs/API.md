@@ -379,6 +379,138 @@ Authorization: Bearer <token>
 
 ---
 
+## 同步 API
+
+### 获取增量变更
+
+```http
+GET /api/sync/changes?since=<syncVersion>
+Authorization: Bearer <token>
+```
+
+**查询参数:**
+- `since` (必需): 上次同步的 syncVersion
+
+**响应:**
+```json
+{
+  "notes": [
+    {
+      "id": "uuid",
+      "encryptedTitle": "...",
+      "encryptedContent": "...",
+      "encryptedDEK": "...",
+      "folderId": "uuid | null",
+      "isPinned": false,
+      "hasPassword": false,
+      "tags": ["tag1", "tag2"],
+      "syncVersion": 5,
+      "lastModifiedDeviceId": "device-uuid",
+      "createdAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-01T00:00:00Z",
+      "isDeleted": false,
+      "deletedAt": null
+    }
+  ],
+  "folders": [
+    {
+      "id": "uuid",
+      "encryptedName": "...",
+      "parentId": null,
+      "order": 0,
+      "hasPassword": false,
+      "syncVersion": 3,
+      "lastModifiedDeviceId": "device-uuid",
+      "createdAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-01T00:00:00Z",
+      "isDeleted": false,
+      "deletedAt": null
+    }
+  ],
+  "currentSyncVersion": 10,
+  "serverTime": 1703500000000
+}
+```
+
+### 推送本地变更
+
+```http
+POST /api/sync/push
+Authorization: Bearer <token>
+```
+
+**请求体:**
+```json
+{
+  "deviceId": "device-uuid",
+  "notes": [
+    {
+      "id": "uuid",
+      "encryptedTitle": "...",
+      "encryptedContent": "...",
+      "encryptedDEK": "...",
+      "folderId": "uuid | null",
+      "isPinned": false,
+      "hasPassword": false,
+      "tags": ["tag1"],
+      "syncVersion": 1,
+      "updatedAt": "2024-01-01T00:00:00Z",
+      "isDeleted": false
+    }
+  ],
+  "folders": [
+    {
+      "id": "uuid",
+      "encryptedName": "...",
+      "parentId": null,
+      "order": 0,
+      "hasPassword": false,
+      "syncVersion": 1,
+      "updatedAt": "2024-01-01T00:00:00Z",
+      "isDeleted": false
+    }
+  ]
+}
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "results": {
+    "notes": { "created": 1, "updated": 2, "conflicts": 0 },
+    "folders": { "created": 0, "updated": 1, "conflicts": 0 }
+  },
+  "serverTime": 1703500000000
+}
+```
+
+### 获取完整快照
+
+```http
+GET /api/sync/snapshot
+Authorization: Bearer <token>
+```
+
+**响应:** 与 `/api/sync/changes` 相同格式，但返回所有数据
+
+### 心跳检测
+
+```http
+POST /api/sync/heartbeat
+Authorization: Bearer <token>
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "serverTime": 1703500000000
+}
+```
+
+---
+
 ## 审计日志 API
 
 ### 获取审计日志

@@ -227,10 +227,9 @@
 @media (max-width: 768px) {
   .noteList {
     width: 100%;
-    height: auto;
+    height: 100vh;
     flex: 1;
     border-right: none;
-    border-bottom: 1px solid var(--color-border);
   }
   
   .noteList.hidden {
@@ -242,39 +241,80 @@
     top: 0;
     background: var(--color-bg-primary);
     z-index: 10;
+    padding: var(--spacing-3) var(--spacing-4);
   }
   
   .mobileHeader {
     display: flex;
     align-items: center;
-    gap: var(--spacing-2);
-    padding: var(--spacing-2) var(--spacing-3);
-    border-bottom: 1px solid var(--color-border);
+    gap: var(--spacing-3);
+    padding-bottom: var(--spacing-3);
   }
   
   .menuButton {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     background: none;
     border: none;
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-xl);
     color: var(--color-text-secondary);
     cursor: pointer;
     border-radius: var(--radius-md);
+    -webkit-tap-highlight-color: transparent;
   }
   
-  .menuButton:hover {
+  .menuButton:active {
     background-color: var(--color-bg-tertiary);
   }
   
   .mobileTitle {
     flex: 1;
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
+  }
+  
+  .searchWrapper {
+    padding: var(--spacing-3);
+  }
+  
+  .searchInput {
+    font-size: var(--font-size-base);
+  }
+  
+  .newNoteButton {
+    padding: var(--spacing-3);
+    font-size: var(--font-size-base);
+  }
+  
+  .noteItem {
+    border-bottom: 1px solid var(--color-border);
+  }
+  
+  .noteContent {
+    padding: var(--spacing-4);
+  }
+  
+  .noteTitle {
+    font-size: var(--font-size-base);
+    margin-bottom: var(--spacing-2);
+  }
+  
+  .notePreview {
+    font-size: var(--font-size-sm);
+    -webkit-line-clamp: 2;
+  }
+  
+  .deleteButton {
+    display: flex;
+    padding: 0 var(--spacing-4);
+  }
+  
+  .list {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
   }
 }
 

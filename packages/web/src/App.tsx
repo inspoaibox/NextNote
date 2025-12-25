@@ -54,10 +54,19 @@ function App() {
   // 登录后加载数据并初始化同步
   useEffect(() => {
     if (isAuthenticated && hasKEK) {
+      // 初始化默认同步配置（首次使用时自动检测后端）
+      import('./services/incremental-sync').then(async ({ initDefaultSyncConfig, startAutoSync }) => {
+        await initDefaultSyncConfig();
+        startAutoSync();
+      }).catch(err => {
+        console.error('Failed to init sync:', err);
+      });
+      
+      // 加载数据
       loadNotes();
       loadFolders();
       
-      // 初始化同步服务
+      // 初始化实时同步服务
       const authData = localStorage.getItem('auth-data');
       if (authData) {
         try {
@@ -74,6 +83,10 @@ function App() {
     return () => {
       if (!isAuthenticated) {
         disconnectSync();
+        // 停止增量同步
+        import('./services/incremental-sync').then(({ stopAutoSync }) => {
+          stopAutoSync();
+        }).catch(() => {});
       }
     };
   }, [isAuthenticated, hasKEK, loadNotes, loadFolders, initSync, disconnectSync]);

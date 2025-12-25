@@ -69,7 +69,7 @@ export function Editor({ onBack }: EditorProps) {
     setNotePassword,
     removeNotePassword,
     verifyNotePassword,
-    isNoteUnlocked,
+    unlockedNoteIds,
   } = useNoteStore();
   
   const note = getSelectedNote();
@@ -77,8 +77,8 @@ export function Editor({ onBack }: EditorProps) {
   // 同步计算锁定状态，避免闪烁
   const isLocked = useMemo(() => {
     if (!note) return false;
-    return note.isPasswordProtected && !isNoteUnlocked(note.id);
-  }, [note, isNoteUnlocked]);
+    return note.isPasswordProtected && !unlockedNoteIds.has(note.id);
+  }, [note, unlockedNoteIds]);
   
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');

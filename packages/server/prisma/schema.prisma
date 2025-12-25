@@ -71,6 +71,7 @@ model Note {
   encryptedPasswordSalt String?   @map("encrypted_password_salt")
   visibility            String    @default("private")
   syncVersion           Int       @default(1) @map("sync_version")
+  lastModifiedDeviceId  String?   @map("last_modified_device_id")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
   isDeleted             Boolean   @default(false) @map("is_deleted")
@@ -86,6 +87,7 @@ model Note {
   @@index([userId])
   @@index([folderId])
   @@index([isPinned])
+  @@index([syncVersion])
   @@map("notes")
 }
 
@@ -113,6 +115,7 @@ model Folder {
   passwordHash      String?   @map("password_hash")
   passwordInherited Boolean   @default(false) @map("password_inherited")
   syncVersion       Int       @default(1) @map("sync_version")
+  lastModifiedDeviceId String? @map("last_modified_device_id")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
   isDeleted         Boolean   @default(false) @map("is_deleted")
@@ -125,6 +128,7 @@ model Folder {
   
   @@index([userId])
   @@index([parentId])
+  @@index([syncVersion])
   @@map("folders")
 }
 
@@ -212,4 +216,22 @@ model Backup {
   @@index([userId])
   @@index([type])
   @@map("backups")
+}
+
+model SyncConfig {
+  id                String    @id @default(uuid())
+  userId            String    @unique @map("user_id")
+  syncTarget        String    @default("none") @map("sync_target") // 'none' | 'server' | 'webdav'
+  syncInterval      Int       @default(5) @map("sync_interval") // minutes: 1,2,3,5,10,30,60
+  webdavUrl         String?   @map("webdav_url")
+  webdavUsername    String?   @map("webdav_username")
+  webdavPassword    String?   @map("webdav_password") // encrypted
+  serverUrl         String?   @map("server_url")
+  lastSyncAt        DateTime? @map("last_sync_at")
+  lastSyncVersion   Int       @default(0) @map("last_sync_version")
+  isEnabled         Boolean   @default(false) @map("is_enabled")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  
+  @@map("sync_configs")
 }

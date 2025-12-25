@@ -296,6 +296,8 @@
     position: fixed;
     top: 0;
     left: 0;
+    width: var(--sidebar-width);
+    max-width: 320px;
     z-index: 100;
     transform: translateX(-100%);
     transition: transform var(--transition-normal);
@@ -310,24 +312,46 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: var(--spacing-4);
   }
   
   .closeButton {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     background: none;
     border: none;
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-xl);
     color: var(--color-text-secondary);
     cursor: pointer;
     border-radius: var(--radius-md);
+    -webkit-tap-highlight-color: transparent;
   }
   
-  .closeButton:hover {
+  .closeButton:active {
     background-color: var(--color-bg-tertiary);
+  }
+  
+  .navItem {
+    padding: var(--spacing-3) var(--spacing-4);
+    min-height: 48px;
+  }
+  
+  .folderButton {
+    padding: var(--spacing-3);
+    min-height: 44px;
+  }
+  
+  .folderActions {
+    opacity: 1;
+  }
+  
+  .settingsButton,
+  .logoutButton {
+    padding: var(--spacing-3);
+    min-height: 48px;
   }
 }
 

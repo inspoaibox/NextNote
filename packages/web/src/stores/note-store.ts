@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { cryptoService, apiService } from '../services';
 import type { EncryptedData, WrappedKey } from '../services/crypto-service';
+import { openDatabase, promisifyRequest, LocalNoteRecord } from '../storage/database';
+import { deviceId } from '../services/incremental-sync';
 
 export interface Note {
   id: string;
@@ -15,6 +17,7 @@ export interface Note {
   encryptedTitle?: EncryptedData;
   encryptedContent?: EncryptedData;
   encryptedDEK?: WrappedKey;
+  isDirty?: boolean; // 标记是否有未同步的本地修改
 }
 
 interface NoteState {
@@ -24,6 +27,7 @@ interface NoteState {
   isLoading: boolean;
   error: string | null;
   searchQuery: string;
+  pendingSyncTimers: Map<string, ReturnType<typeof setTimeout>>;
   setNotes: (notes: Note[]) => void;
   addNote: (note: Note) => void;
   updateNote: (id: string, updates: Partial<Note>) => void;
@@ -45,6 +49,8 @@ interface NoteState {
   getSelectedNote: () => Note | undefined;
   getFilteredNotes: () => Note[];
   getNotesByFolder: (folderId: string | null) => Note[];
+  saveToLocal: (note: Note) => Promise<void>;
+  scheduleSyncToCloud: (noteId: string) => void;
 }
 
 const hashPassword = async (password: string): Promise<string> => {
@@ -55,6 +61,81 @@ const hashPassword = async (password: string): Promise<string> => {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 };
 
+// 同步延迟时间（毫秒）
+const SYNC_DELAY = 10000; // 10秒
+
+/**
+ * 保存笔记到 IndexedDB
+ */
+async function saveNoteToIndexedDB(note: Note, isDirty: boolean = true): Promise<void> {
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction('notes', 'readwrite');
+    const store = tx.objectStore('notes');
+    
+    const existing = await promisifyRequest(store.get(note.id));
+    
+    const record: LocalNoteRecord = {
+      id: note.id,
+      title: note.title,
+      content: note.content,
+      folderId: note.folderId,
+      isPinned: note.isPinned,
+      pinnedAt: note.isPinned ? Date.now() : null,
+      hasPassword: note.isPasswordProtected,
+      tags: note.tags,
+      syncVersion: existing?.syncVersion || 0,
+      localVersion: (existing?.localVersion || 0) + 1,
+      isDirty,
+      lastModifiedDeviceId: deviceId,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+      isDeleted: false,
+      deletedAt: null,
+      encryptedTitle: note.encryptedTitle ? JSON.stringify(note.encryptedTitle) : undefined,
+      encryptedContent: note.encryptedContent ? JSON.stringify(note.encryptedContent) : undefined,
+      encryptedDEK: note.encryptedDEK ? JSON.stringify(note.encryptedDEK) : undefined,
+    };
+    
+    await promisifyRequest(store.put(record));
+  } catch (error) {
+    console.error('Failed to save note to IndexedDB:', error);
+  }
+}
+
+/**
+ * 同步笔记到云端
+ */
+async function syncNoteToCloud(noteId: string, note: Note): Promise<void> {
+  try {
+    const kek = cryptoService.getKEK();
+    if (!kek) return;
+    
+    let dek: CryptoKey;
+    if (note.encryptedDEK) {
+      dek = await cryptoService.unwrapDEK(note.encryptedDEK, kek);
+    } else {
+      dek = await cryptoService.generateDEK();
+    }
+    
+    const encryptedTitle = await cryptoService.encrypt(note.title || 'Untitled', dek);
+    const encryptedContent = await cryptoService.encrypt(note.content || '', dek);
+    const encryptedDEK = note.encryptedDEK || await cryptoService.wrapDEK(dek, kek);
+    
+    await apiService.updateNote(noteId, {
+      encryptedTitle,
+      encryptedContent,
+      encryptedDEK,
+      tags: note.tags,
+    });
+    
+    // 标记为已同步
+    await saveNoteToIndexedDB({ ...note, encryptedTitle, encryptedContent, encryptedDEK }, false);
+    console.log('[Sync] Note synced to cloud:', noteId);
+  } catch (error) {
+    console.error('[Sync] Failed to sync note to cloud:', noteId, error);
+  }
+}
 
 export const useNoteStore = create<NoteState>()((set, get) => ({
   notes: [],
@@ -63,6 +144,8 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
   isLoading: false,
   error: null,
   searchQuery: '',
+  pendingSyncTimers: new Map(),
+  
   setNotes: (notes) => set({ notes }),
   addNote: (note) => set((state) => ({ notes: [note, ...state.notes] })),
   updateNote: (id, updates) => set((state) => ({
@@ -77,6 +160,37 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
   setError: (error) => set({ error }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
 
+  // 保存到本地 IndexedDB
+  saveToLocal: async (note: Note) => {
+    await saveNoteToIndexedDB(note, true);
+  },
+
+  // 安排延迟同步到云端
+  scheduleSyncToCloud: (noteId: string) => {
+    const { pendingSyncTimers, notes } = get();
+    
+    // 清除之前的定时器
+    const existingTimer = pendingSyncTimers.get(noteId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+    
+    // 设置新的定时器
+    const timer = setTimeout(() => {
+      const note = get().notes.find(n => n.id === noteId);
+      if (note) {
+        syncNoteToCloud(noteId, note);
+      }
+      get().pendingSyncTimers.delete(noteId);
+    }, SYNC_DELAY);
+    
+    set((state) => {
+      const newTimers = new Map(state.pendingSyncTimers);
+      newTimers.set(noteId, timer);
+      return { pendingSyncTimers: newTimers };
+    });
+  },
+
   createEncryptedNote: async (title, content, folderId = null, tags = []) => {
     const kek = cryptoService.getKEK();
     if (!kek) throw new Error('Not authenticated');
@@ -90,69 +204,36 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
       id: result.data?.id || crypto.randomUUID(),
       title, content, folderId, isPinned: false, isPasswordProtected: false, tags,
       createdAt: now, updatedAt: now, encryptedTitle, encryptedContent, encryptedDEK,
+      isDirty: false,
     };
+    
+    // 保存到本地
+    await saveNoteToIndexedDB(note, false);
+    
     set((state) => ({ notes: [note, ...state.notes], selectedNoteId: note.id }));
     return note;
   },
+  
   updateEncryptedNote: async (id, updates) => {
     const kek = cryptoService.getKEK();
     if (!kek) throw new Error('Not authenticated');
     const note = get().notes.find((n) => n.id === id);
     if (!note) throw new Error('Note not found');
     
-    let dek: CryptoKey;
-    if (note.encryptedDEK) {
-      dek = await cryptoService.unwrapDEK(note.encryptedDEK, kek);
-    } else {
-      dek = await cryptoService.generateDEK();
-    }
+    const now = Date.now();
+    const localUpdates: Partial<Note> = { ...updates, updatedAt: now, isDirty: true };
     
-    const updateData: { encryptedTitle?: EncryptedData; encryptedContent?: EncryptedData; encryptedDEK?: WrappedKey; tags?: string[] } = {};
-    const localUpdates: Partial<Note> = {};
-    
-    // 并行加密标题和内容
-    const encryptPromises: Promise<void>[] = [];
-    
-    if (updates.title !== undefined) {
-      localUpdates.title = updates.title;
-      encryptPromises.push(
-        cryptoService.encrypt(updates.title || 'Untitled', dek).then(encrypted => {
-          updateData.encryptedTitle = encrypted;
-          localUpdates.encryptedTitle = encrypted;
-        })
-      );
-    }
-    
-    if (updates.content !== undefined) {
-      localUpdates.content = updates.content;
-      encryptPromises.push(
-        cryptoService.encrypt(updates.content || '', dek).then(encrypted => {
-          updateData.encryptedContent = encrypted;
-          localUpdates.encryptedContent = encrypted;
-        })
-      );
-    }
-    
-    if (updates.tags !== undefined) {
-      updateData.tags = updates.tags;
-      localUpdates.tags = updates.tags;
-    }
-    
-    if (!note.encryptedDEK) {
-      updateData.encryptedDEK = await cryptoService.wrapDEK(dek, kek);
-      localUpdates.encryptedDEK = updateData.encryptedDEK;
-    }
-    
-    // 等待所有加密完成
-    await Promise.all(encryptPromises);
-    
-    // 发送 API 请求
-    await apiService.updateNote(id, updateData);
-    
-    // 更新本地状态
+    // 1. 立即更新本地状态
     set((state) => ({
-      notes: state.notes.map((n) => (n.id === id ? { ...n, ...localUpdates, updatedAt: Date.now() } : n)),
+      notes: state.notes.map((n) => (n.id === id ? { ...n, ...localUpdates } : n)),
     }));
+    
+    // 2. 保存到 IndexedDB
+    const updatedNote = { ...note, ...localUpdates };
+    await saveNoteToIndexedDB(updatedNote as Note, true);
+    
+    // 3. 安排延迟同步到云端
+    get().scheduleSyncToCloud(id);
   },
 
   loadNotes: async () => {
@@ -170,12 +251,16 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
             const dek = await cryptoService.unwrapDEK(fullNote.data.encryptedDEK, kek);
             const title = await cryptoService.decrypt(fullNote.data.encryptedTitle, dek);
             const content = await cryptoService.decrypt(fullNote.data.encryptedContent, dek);
-            decryptedNotes.push({
+            const note: Note = {
               id: encNote.id, title, content, folderId: encNote.folderId, isPinned: encNote.isPinned,
               isPasswordProtected: encNote.hasPassword, tags: encNote.tags,
               createdAt: new Date(encNote.createdAt).getTime(), updatedAt: new Date(encNote.updatedAt).getTime(),
               encryptedTitle: fullNote.data.encryptedTitle, encryptedContent: fullNote.data.encryptedContent, encryptedDEK: fullNote.data.encryptedDEK,
-            });
+              isDirty: false,
+            };
+            decryptedNotes.push(note);
+            // 同步保存到本地
+            await saveNoteToIndexedDB(note, false);
           } catch (error) {
             console.error('Failed to decrypt note:', encNote.id, error);
           }
@@ -189,6 +274,7 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
       set({ isLoading: false });
     }
   },
+  
   reloadNote: async (id) => {
     const kek = cryptoService.getKEK();
     if (!kek) throw new Error('Not authenticated');
@@ -203,6 +289,7 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
         isPasswordProtected: fullNote.data!.hasPassword, tags: fullNote.data!.tags,
         updatedAt: new Date(fullNote.data!.updatedAt).getTime(),
         encryptedTitle: fullNote.data!.encryptedTitle, encryptedContent: fullNote.data!.encryptedContent, encryptedDEK: fullNote.data!.encryptedDEK,
+        isDirty: false,
       } : n),
     }));
   },

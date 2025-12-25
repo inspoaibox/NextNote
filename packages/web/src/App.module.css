@@ -16,7 +16,8 @@
 @media (max-width: 768px) {
   .app {
     position: relative;
-    --sidebar-width: 100%;
+    flex-direction: column;
+    --sidebar-width: 85%;
     --note-list-width: 100%;
   }
 }
@@ -36,6 +37,7 @@
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 99;
+    backdrop-filter: blur(2px);
   }
   
   .sidebarOverlay.hidden {

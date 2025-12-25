@@ -205,3 +205,66 @@
   font-size: var(--font-size-xs);
   font-family: monospace;
 }
+
+
+/* Sync Status */
+.syncStatus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.syncStatus span {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.subTitle {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+    min-height: auto;
+  }
+  
+  .tabs {
+    flex-direction: row;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    padding-right: 0;
+    padding-bottom: var(--spacing-sm);
+    overflow-x: auto;
+    gap: var(--spacing-xs);
+  }
+  
+  .tab {
+    white-space: nowrap;
+    padding: var(--spacing-sm);
+    font-size: var(--font-size-xs);
+  }
+  
+  .content {
+    padding-left: 0;
+    padding-top: var(--spacing-md);
+  }
+  
+  .buttonGroup {
+    flex-direction: column;
+  }
+  
+  .syncStatus {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    text-align: center;
+  }
+}

@@ -72,9 +72,11 @@ export function rateLimit(options?: { windowMs?: number; max?: number }) {
  * 严格的速率限制（用于敏感操作如登录）
  */
 export function strictRateLimit() {
+  // 开发环境放宽限制
+  const isDev = process.env.NODE_ENV !== 'production';
   return rateLimit({
     windowMs: 15 * 60 * 1000, // 15分钟
-    max: 10, // 最多10次请求
+    max: isDev ? 100 : 10, // 开发环境100次，生产环境10次
   });
 }
 

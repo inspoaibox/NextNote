@@ -9,7 +9,7 @@ interface SettingsPageProps {
   onClose: () => void;
 }
 
-type SettingsTab = 'general' | 'backup' | 'security' | 'account';
+type SettingsTab = 'general' | 'sync' | 'backup' | 'security' | 'account';
 
 export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const { t } = useI18n();
@@ -24,6 +24,12 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
             onClick={() => setActiveTab('general')}
           >
             ⚙️ {t('settings.appearance')}
+          </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'sync' ? styles.active : ''}`}
+            onClick={() => setActiveTab('sync')}
+          >
+            🔄 {t('settings.sync')}
           </button>
           <button
             className={`${styles.tab} ${activeTab === 'backup' ? styles.active : ''}`}
@@ -47,6 +53,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
         <div className={styles.content}>
           {activeTab === 'general' && <GeneralSettings />}
+          {activeTab === 'sync' && <SyncSettings />}
           {activeTab === 'backup' && <BackupSettings />}
           {activeTab === 'security' && <SecuritySettings />}
           {activeTab === 'account' && <AccountSettings onClose={onClose} />}
@@ -109,6 +116,304 @@ function GeneralSettings() {
           <option value="20">20px</option>
         </select>
       </div>
+    </div>
+  );
+}
+
+function SyncSettings() {
+  const { t } = useI18n();
+  const [syncTarget, setSyncTarget] = useState<'none' | 'server' | 'webdav'>('none');
+  const [syncInterval, setSyncInterval] = useState<number>(5);
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [serverUrl, setServerUrl] = useState('');
+  const [serverUsername, setServerUsername] = useState('');
+  const [serverPassword, setServerPassword] = useState('');
+  const [webdavUrl, setWebdavUrl] = useState('');
+  const [webdavUsername, setWebdavUsername] = useState('');
+  const [webdavPassword, setWebdavPassword] = useState('');
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // 加载同步配置
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const { getSyncConfig } = await import('../../services/incremental-sync');
+        const config = await getSyncConfig();
+        if (config) {
+          setSyncTarget(config.syncTarget);
+          setSyncInterval(config.syncInterval);
+          setIsEnabled(config.isEnabled);
+          setServerUrl(config.serverUrl || '');
+          setServerUsername(config.serverUsername || '');
+          setWebdavUrl(config.webdavUrl || '');
+          setWebdavUsername(config.webdavUsername || '');
+          if (config.lastSyncAt) {
+            setLastSyncAt(new Date(config.lastSyncAt).toLocaleString());
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load sync config:', error);
+      }
+    };
+    loadConfig();
+  }, []);
+
+  const handleSaveConfig = async () => {
+    setMessage(null);
+    setIsSaving(true);
+    try {
+      const { saveSyncConfig, startAutoSync, stopAutoSync } = await import('../../services/incremental-sync');
+      await saveSyncConfig({
+        syncTarget,
+        syncInterval,
+        isEnabled,
+        serverUrl: serverUrl || null,
+        serverUsername: serverUsername || null,
+        serverPassword: serverPassword || null,
+        webdavUrl: webdavUrl || null,
+        webdavUsername: webdavUsername || null,
+        webdavPassword: webdavPassword || null,
+      });
+      
+      // 根据配置启动或停止自动同步
+      if (isEnabled && syncTarget !== 'none') {
+        await startAutoSync();
+      } else {
+        stopAutoSync();
+      }
+      
+      setMessage({ type: 'success', text: t('settings.settingsSaved') });
+    } catch (error) {
+      console.error('Failed to save sync config:', error);
+      setMessage({ type: 'error', text: t('common.error') });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setMessage(null);
+    setIsTesting(true);
+    try {
+      const { createSyncAdapter, saveSyncConfig } = await import('../../services/incremental-sync');
+      // 先保存配置
+      await saveSyncConfig({
+        syncTarget,
+        syncInterval,
+        isEnabled,
+        serverUrl: serverUrl || null,
+        serverUsername: serverUsername || null,
+        serverPassword: serverPassword || null,
+        webdavUrl: webdavUrl || null,
+        webdavUsername: webdavUsername || null,
+        webdavPassword: webdavPassword || null,
+      });
+      // 创建适配器并测试连接
+      const adapter = await createSyncAdapter();
+      if (!adapter) {
+        throw new Error('Failed to create sync adapter');
+      }
+      const connected = await adapter.testConnection();
+      if (connected) {
+        setMessage({ type: 'success', text: t('settings.connectionSuccess') });
+      } else {
+        throw new Error('Connection test failed');
+      }
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      setMessage({ type: 'error', text: t('settings.connectionFailed') });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    setMessage(null);
+    setIsSyncing(true);
+    try {
+      const { performSync } = await import('../../services/incremental-sync');
+      const result = await performSync();
+      if (result.success) {
+        setLastSyncAt(new Date().toLocaleString());
+        const statsMsg = `↑${result.stats.notesUploaded}/${result.stats.foldersUploaded} ↓${result.stats.notesDownloaded}/${result.stats.foldersDownloaded}`;
+        setMessage({ type: 'success', text: `${t('settings.syncSuccess')} (${statsMsg})` });
+      } else {
+        throw new Error(result.error || 'Sync failed');
+      }
+    } catch (error) {
+      console.error('Sync failed:', error);
+      setMessage({ type: 'error', text: t('settings.syncFailed') });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const intervalOptions = [
+    { value: 1, label: t('settings.syncInterval1min') },
+    { value: 2, label: t('settings.syncInterval2min') },
+    { value: 3, label: t('settings.syncInterval3min') },
+    { value: 5, label: t('settings.syncInterval5min') },
+    { value: 10, label: t('settings.syncInterval10min') },
+    { value: 30, label: t('settings.syncInterval30min') },
+    { value: 60, label: t('settings.syncInterval1hour') },
+  ];
+
+  return (
+    <div className={styles.section}>
+      <h3 className={styles.sectionTitle}>{t('settings.sync')}</h3>
+      
+      {message && (
+        <div className={message.type === 'error' ? styles.error : styles.success}>
+          {message.text}
+        </div>
+      )}
+
+      <div className={styles.setting}>
+        <label className={styles.settingLabel}>{t('settings.syncTarget')}</label>
+        <select
+          className={styles.select}
+          value={syncTarget}
+          onChange={(e) => setSyncTarget(e.target.value as 'none' | 'server' | 'webdav')}
+        >
+          <option value="none">{t('settings.syncTargetNone')}</option>
+          <option value="server">{t('settings.syncTargetServer')}</option>
+          <option value="webdav">{t('settings.syncTargetWebdav')}</option>
+        </select>
+      </div>
+
+      {syncTarget !== 'none' && (
+        <>
+          <div className={styles.setting}>
+            <label className={styles.settingLabel}>{t('settings.syncIntervalLabel')}</label>
+            <select
+              className={styles.select}
+              value={syncInterval}
+              onChange={(e) => setSyncInterval(Number(e.target.value))}
+            >
+              {intervalOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.setting}>
+            <label className={styles.settingLabel}>
+              <input
+                type="checkbox"
+                checked={isEnabled}
+                onChange={(e) => setIsEnabled(e.target.checked)}
+              />
+              {t('settings.enableAutoSync')}
+            </label>
+          </div>
+        </>
+      )}
+
+      {syncTarget === 'server' && (
+        <>
+          <hr className={styles.divider} />
+          <h4 className={styles.subTitle}>{t('settings.serverConfig')}</h4>
+          <Input
+            label={t('settings.serverUrl')}
+            type="url"
+            value={serverUrl}
+            onChange={(e) => setServerUrl(e.target.value)}
+            placeholder={window.location.origin}
+          />
+          <div className={styles.setting}>
+            <label className={styles.settingLabel}>
+              <input
+                type="checkbox"
+                checked={!serverUsername}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setServerUsername('');
+                    setServerPassword('');
+                  }
+                }}
+              />
+              {t('settings.useCurrentLogin') || '使用当前登录账号'}
+            </label>
+          </div>
+          {serverUsername !== '' && (
+            <>
+              <p className={styles.settingHint}>
+                {t('settings.serverSeparateAuth') || '使用独立账号登录同步服务器'}
+              </p>
+              <Input
+                label={t('common.username') || t('common.email')}
+                type="text"
+                value={serverUsername}
+                onChange={(e) => setServerUsername(e.target.value)}
+                placeholder="user@example.com"
+              />
+              <Input
+                label={t('common.password')}
+                type="password"
+                value={serverPassword}
+                onChange={(e) => setServerPassword(e.target.value)}
+              />
+            </>
+          )}
+          {!serverUsername && (
+            <p className={styles.settingHint}>
+              {t('settings.serverAuthHint') || '服务器同步使用当前登录账号的认证信息'}
+            </p>
+          )}
+        </>
+      )}
+
+      {syncTarget === 'webdav' && (
+        <>
+          <hr className={styles.divider} />
+          <h4 className={styles.subTitle}>{t('settings.webdavConfig')}</h4>
+          <Input
+            label={t('settings.webdavUrl')}
+            type="url"
+            value={webdavUrl}
+            onChange={(e) => setWebdavUrl(e.target.value)}
+            placeholder="https://webdav.example.com/notes"
+          />
+          <Input
+            label={t('common.username')}
+            type="text"
+            value={webdavUsername}
+            onChange={(e) => setWebdavUsername(e.target.value)}
+          />
+          <Input
+            label={t('common.password')}
+            type="password"
+            value={webdavPassword}
+            onChange={(e) => setWebdavPassword(e.target.value)}
+          />
+        </>
+      )}
+
+      {syncTarget !== 'none' && (
+        <>
+          <hr className={styles.divider} />
+          <div className={styles.buttonGroup}>
+            <Button variant="secondary" onClick={handleTestConnection} disabled={isTesting}>
+              {isTesting ? t('settings.testing') : t('settings.testConnection')}
+            </Button>
+            <Button variant="primary" onClick={handleSaveConfig} disabled={isSaving}>
+              {isSaving ? t('common.loading') : t('common.save')}
+            </Button>
+          </div>
+
+          <hr className={styles.divider} />
+          <div className={styles.syncStatus}>
+            <span>{t('settings.lastSync')}: {lastSyncAt || t('settings.neverSynced')}</span>
+            <Button variant="primary" onClick={handleSyncNow} disabled={isSyncing}>
+              {isSyncing ? t('settings.syncing') : t('settings.syncNow')}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -68,16 +68,26 @@
 | 标签 | 功能 | 状态 | 备注 |
 |------|------|------|------|
 | General | 主题切换 | ✅ | 支持 System/Light/Dark |
+| General | 语言切换 | ✅ | 支持中文/英文 |
 | General | 字体大小 | ✅ | 已连接 settings store |
+| Sync | 同步目标 | ✅ | 无/服务器/WebDAV |
+| Sync | 同步间隔 | ✅ | 1/2/3/5/10/30/60 分钟 |
+| Sync | 启用自动同步 | ✅ | |
+| Sync | 服务器配置 | ✅ | URL/用户名/密码 |
+| Sync | WebDAV 配置 | ✅ | URL/用户名/密码 |
+| Sync | 测试连接 | ✅ | 真实实现 |
+| Sync | 立即同步 | ✅ | 真实实现 |
 | Backup | WebDAV 配置 | ✅ | URL/用户名/密码 |
 | Backup | 测试连接 | ✅ | 模拟实现 |
+| Backup | 本地导出 | ✅ | 加密格式导出 |
+| Backup | 本地导入 | ✅ | 支持加密格式 |
 | Backup | 云备份开关 | ✅ | |
 | Backup | 立即备份 | ⚠️ | 未实现，仅占位 |
 | Backup | 备份历史 | ⚠️ | 未实现，仅占位 |
-| Security | 安全日志 | ✅ | 显示模拟数据 |
+| Security | 安全日志 | ✅ | 真实 API 数据 |
 | Security | 撤销会话 | ✅ | |
-| Account | 修改密码 | ⚠️ | UI 存在，未连接 API |
-| Account | 查看恢复密钥 | ⚠️ | 未实现，仅占位 |
+| Account | 修改密码 | ✅ | 已连接 API |
+| Account | 查看恢复密钥 | ✅ | |
 | Account | 登出 | ✅ | |
 | Account | 删除账户 | ⚠️ | 未实现，仅占位 |
 
@@ -126,6 +136,15 @@
 | GET /api/folders/:id | - | ✅ | 前端未调用 |
 | PUT /api/folders/:id | - | ✅ | 前端未调用 |
 | DELETE /api/folders/:id | - | ✅ | 前端未调用 |
+
+### 2.4 同步 API
+
+| 端点 | 前端调用 | 后端实现 | 状态 |
+|------|----------|----------|------|
+| GET /api/sync/changes | incremental-sync.ts | ✅ | ✅ 已连接 |
+| POST /api/sync/push | incremental-sync.ts | ✅ | ✅ 已连接 |
+| GET /api/sync/snapshot | incremental-sync.ts | ✅ | ✅ 已连接 |
+| POST /api/sync/heartbeat | incremental-sync.ts | ✅ | ✅ 已连接 |
 
 ---
 
@@ -275,6 +294,12 @@
 - ✅ 移动端响应式设计
 - ✅ 字体大小设置
 - ✅ 前后端 API 集成（真实加密数据）
+- ✅ 增量同步引擎
+- ✅ 本地优先存储 (IndexedDB)
+- ✅ 服务器同步适配器
+- ✅ WebDAV 同步适配器
+- ✅ 自动同步功能
+- ✅ 同步设置 UI
 
 ### 待完成
 - ⚠️ 生产环境安全配置 (HTTPS, CSRF)
