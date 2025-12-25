@@ -80,6 +80,8 @@ export const zh = {
     placeholder: '开始用 Markdown 写作...',
     saving: '保存中...',
     saved: '已保存',
+    syncing: '同步中...',
+    unsaved: '未同步',
     pin: '置顶笔记',
     unpin: '取消置顶',
     tags: '标签',

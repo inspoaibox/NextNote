@@ -80,6 +80,8 @@ export const en = {
     placeholder: 'Start writing in Markdown...',
     saving: 'Saving...',
     saved: 'Saved',
+    syncing: 'Syncing...',
+    unsaved: 'Unsaved',
     pin: 'Pin note',
     unpin: 'Unpin note',
     tags: 'Tags',

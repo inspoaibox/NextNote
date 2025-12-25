@@ -266,6 +266,92 @@
   margin: 0;
 }
 
+/* Locked note inline UI */
+.lockedTitle {
+  flex: 1;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.lockedContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-6);
+}
+
+.lockIcon {
+  font-size: 64px;
+  margin-bottom: var(--spacing-4);
+  opacity: 0.6;
+}
+
+.lockText {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-2);
+}
+
+.lockHint {
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--spacing-6);
+}
+
+.unlockForm {
+  display: flex;
+  gap: var(--spacing-3);
+  max-width: 400px;
+  width: 100%;
+}
+
+.unlockInput {
+  flex: 1;
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--font-size-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.unlockInput:focus {
+  border-color: var(--color-primary);
+}
+
+.unlockButton {
+  padding: var(--spacing-3) var(--spacing-6);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: white;
+  background: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.unlockButton:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.unlockButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.unlockError {
+  margin-top: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-error);
+}
+
 /* More Menu */
 .moreMenuWrapper {
   position: relative;
