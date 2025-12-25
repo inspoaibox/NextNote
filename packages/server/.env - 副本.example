@@ -1,0 +1,12 @@
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/secure_notebook?schema=public"
+
+# JWT
+JWT_SECRET="zhEN4aHWmk42wGyuY8BYyN5EBbfKEZVD"
+
+# Server
+PORT=4000
+CLIENT_URL="http://localhost:3000"
+
+# Node environment
+NODE_ENV="development"

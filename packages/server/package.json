@@ -1,0 +1,41 @@
+{
+  "name": "@secure-notebook/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "clean": "rimraf dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.0",
+    "@secure-notebook/shared": "workspace:*",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.0",
+    "socket.io": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.0",
+    "@types/cors": "^2.8.0",
+    "@types/express": "^4.17.0",
+    "@types/express-serve-static-core": "^5.1.0",
+    "@types/jsonwebtoken": "^9.0.0",
+    "fast-check": "^3.14.0",
+    "prisma": "^5.7.0",
+    "rimraf": "^5.0.5",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}

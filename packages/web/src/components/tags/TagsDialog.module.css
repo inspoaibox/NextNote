@@ -1,0 +1,76 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.inputRow {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: flex-start;
+}
+
+.inputRow > div:first-child {
+  flex: 1;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  min-height: 60px;
+  padding: var(--spacing-sm);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.empty {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  width: 100%;
+  padding: var(--spacing-md);
+}
+
+.tag {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+}
+
+.tagName {
+  font-weight: var(--font-weight-medium);
+}
+
+.removeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.removeButton:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
+}

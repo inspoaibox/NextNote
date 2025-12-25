@@ -1,0 +1,164 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-secondary);
+  padding: var(--spacing-lg);
+}
+
+.card {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-xl);
+  width: 100%;
+  max-width: 400px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.logo {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.subtitle {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.error {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.forgotLink {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  text-align: right;
+  padding: 0;
+}
+
+.forgotLink:hover {
+  text-decoration: underline;
+}
+
+.footer {
+  margin-top: var(--spacing-lg);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.switchLink {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  margin-left: var(--spacing-xs);
+}
+
+.switchLink:hover {
+  text-decoration: underline;
+}
+
+/* Recovery Key Modal */
+.recoveryModal {
+  padding: var(--spacing-md);
+}
+
+.recoveryWarning {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-md);
+  line-height: 1.5;
+}
+
+.recoveryKeyBox {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.recoveryWord {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.wordIndex {
+  color: var(--color-text-tertiary);
+  margin-right: var(--spacing-xs);
+}
+
+.recoveryActions {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: flex-end;
+}
+
+
+/* Recovery Page */
+.recoveryInput {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.textarea {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  min-height: 100px;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.registrationClosed {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}

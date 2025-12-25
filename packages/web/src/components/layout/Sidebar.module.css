@@ -1,0 +1,338 @@
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  background-color: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.header {
+  padding: var(--spacing-4) var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.logo {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-2) 0;
+}
+
+.navItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-4);
+  background: none;
+  border: none;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.navItem:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.navItem.active {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.icon {
+  font-size: var(--font-size-base);
+}
+
+.folderSection {
+  margin-top: var(--spacing-4);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.addButton {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.addButton:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.folderList {
+  padding: var(--spacing-1) 0;
+}
+
+.folderItem {
+  width: 100%;
+}
+
+.folderButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  background: none;
+  border: none;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.folderButton:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.folderButton:hover .folderActions {
+  opacity: 1;
+}
+
+.folderButton.active {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.folderActions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  margin-left: auto;
+}
+
+.folderActionButton {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0.7;
+}
+
+.folderActionButton:hover {
+  background-color: var(--color-bg-secondary);
+  opacity: 1;
+}
+
+.editInput {
+  flex: 1;
+  padding: 2px var(--spacing-1);
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  min-width: 0;
+}
+
+.editInput:focus {
+  outline: none;
+}
+
+.expandIcon {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.expandIcon.expanded {
+  transform: rotate(90deg);
+}
+
+.folderIcon {
+  font-size: var(--font-size-sm);
+}
+
+.folderName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noteCount {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  background-color: var(--color-bg-tertiary);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+
+.children {
+  margin-left: var(--spacing-2);
+}
+
+.footer {
+  padding: var(--spacing-2);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.settingsButton,
+.logoutButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  background: none;
+  border: none;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.settingsButton:hover,
+.logoutButton:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.logoutButton:hover {
+  color: var(--color-danger);
+}
+
+.newFolderInput {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1) var(--spacing-3);
+  margin: var(--spacing-1) 0;
+}
+
+.newFolderInput input {
+  flex: 1;
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.newFolderInput input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.confirmButton,
+.cancelButton {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.confirmButton {
+  color: var(--color-success);
+}
+
+.confirmButton:hover {
+  background-color: var(--color-success-light);
+}
+
+.cancelButton {
+  color: var(--color-danger);
+}
+
+.cancelButton:hover {
+  background-color: var(--color-danger-light);
+}
+
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .closeButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: none;
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+  }
+  
+  .closeButton:hover {
+    background-color: var(--color-bg-tertiary);
+  }
+}
+
+@media (min-width: 769px) {
+  .closeButton {
+    display: none;
+  }
+}

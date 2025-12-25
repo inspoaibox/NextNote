@@ -1,0 +1,1 @@
+export { TagsDialog } from './TagsDialog';

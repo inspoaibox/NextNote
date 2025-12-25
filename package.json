@@ -1,0 +1,27 @@
+{
+  "name": "secure-notebook",
+  "version": "1.0.0",
+  "private": true,
+  "description": "端到端加密的安全在线笔记本应用",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:web": "pnpm --filter @secure-notebook/web dev",
+    "dev:server": "pnpm --filter @secure-notebook/server dev",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "test:watch": "pnpm -r --parallel run test:watch",
+    "lint": "pnpm -r run lint",
+    "format": "prettier --write \"packages/**/*.{ts,tsx,json,md}\"",
+    "clean": "pnpm -r run clean && rimraf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "prettier": "^3.1.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

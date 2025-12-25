@@ -1,0 +1,223 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+}
+
+.tab {
+  padding: 0.75rem 1.25rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+}
+
+/* Dashboard */
+.dashboard {
+  padding: 0.5rem;
+}
+
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.statCard {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 1.25rem;
+  text-align: center;
+  border: 1px solid var(--border-color);
+}
+
+.statValue {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 0.25rem;
+}
+
+.statLabel {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Users */
+.users {
+  padding: 0.5rem;
+}
+
+.searchBar {
+  margin-bottom: 1rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.badge.admin {
+  background: var(--warning-bg, #fef3c7);
+  color: var(--warning-color, #92400e);
+}
+
+.badge.active {
+  background: var(--success-bg, #d1fae5);
+  color: var(--success-color, #065f46);
+}
+
+.badge.inactive {
+  background: var(--error-bg, #fee2e2);
+  color: var(--error-color, #991b1b);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 1rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.actions button:hover {
+  opacity: 1;
+}
+
+.actions button.danger:hover {
+  color: var(--error-color);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.pagination span {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Settings */
+.settings {
+  padding: 0.5rem;
+}
+
+.settings .sectionTitle {
+  margin-top: 1rem;
+}
+
+.settings .sectionTitle:first-child {
+  margin-top: 0;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 1.5rem 0;
+}
+
+.checkbox {
+  margin: 1rem 0;
+}
+
+.checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.checkbox input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
+
+.buttonGroup {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: flex-end;
+}
