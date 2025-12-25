@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import { cryptoService, apiService } from '../services';
 import type { EncryptedData, WrappedKey } from '../services/crypto-service';
 
@@ -55,6 +55,7 @@ const hashPassword = async (password: string): Promise<string> => {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 };
 
+
 export const useNoteStore = create<NoteState>()((set, get) => ({
   notes: [],
   selectedNoteId: null,
@@ -75,6 +76,7 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
+
   createEncryptedNote: async (title, content, folderId = null, tags = []) => {
     const kek = cryptoService.getKEK();
     if (!kek) throw new Error('Not authenticated');
@@ -97,22 +99,62 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
     if (!kek) throw new Error('Not authenticated');
     const note = get().notes.find((n) => n.id === id);
     if (!note) throw new Error('Note not found');
+    
     let dek: CryptoKey;
     if (note.encryptedDEK) {
       dek = await cryptoService.unwrapDEK(note.encryptedDEK, kek);
     } else {
       dek = await cryptoService.generateDEK();
     }
+    
     const updateData: { encryptedTitle?: EncryptedData; encryptedContent?: EncryptedData; encryptedDEK?: WrappedKey; tags?: string[] } = {};
-    if (updates.title !== undefined) updateData.encryptedTitle = await cryptoService.encrypt(updates.title || 'Untitled', dek);
-    if (updates.content !== undefined) updateData.encryptedContent = await cryptoService.encrypt(updates.content || '', dek);
-    if (updates.tags !== undefined) updateData.tags = updates.tags;
-    if (!note.encryptedDEK) updateData.encryptedDEK = await cryptoService.wrapDEK(dek, kek);
+    const localUpdates: Partial<Note> = {};
+    
+    // 并行加密标题和内容
+    const encryptPromises: Promise<void>[] = [];
+    
+    if (updates.title !== undefined) {
+      localUpdates.title = updates.title;
+      encryptPromises.push(
+        cryptoService.encrypt(updates.title || 'Untitled', dek).then(encrypted => {
+          updateData.encryptedTitle = encrypted;
+          localUpdates.encryptedTitle = encrypted;
+        })
+      );
+    }
+    
+    if (updates.content !== undefined) {
+      localUpdates.content = updates.content;
+      encryptPromises.push(
+        cryptoService.encrypt(updates.content || '', dek).then(encrypted => {
+          updateData.encryptedContent = encrypted;
+          localUpdates.encryptedContent = encrypted;
+        })
+      );
+    }
+    
+    if (updates.tags !== undefined) {
+      updateData.tags = updates.tags;
+      localUpdates.tags = updates.tags;
+    }
+    
+    if (!note.encryptedDEK) {
+      updateData.encryptedDEK = await cryptoService.wrapDEK(dek, kek);
+      localUpdates.encryptedDEK = updateData.encryptedDEK;
+    }
+    
+    // 等待所有加密完成
+    await Promise.all(encryptPromises);
+    
+    // 发送 API 请求
     await apiService.updateNote(id, updateData);
+    
+    // 更新本地状态
     set((state) => ({
-      notes: state.notes.map((n) => (n.id === id ? { ...n, ...updates, ...updateData, updatedAt: Date.now() } : n)),
+      notes: state.notes.map((n) => (n.id === id ? { ...n, ...localUpdates, updatedAt: Date.now() } : n)),
     }));
   },
+
   loadNotes: async () => {
     const kek = cryptoService.getKEK();
     if (!kek) return;
@@ -164,6 +206,7 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
       } : n),
     }));
   },
+
   setNotePassword: async (noteId: string, password: string): Promise<boolean> => {
     const hash = await hashPassword(password);
     const result = await apiService.setNotePassword(noteId, hash);

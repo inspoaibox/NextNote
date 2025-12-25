@@ -106,11 +106,43 @@ export function Editor({ onBack }: EditorProps) {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Convert markdown to HTML for preview
-  const previewHtml = useMemo(() => markdownToHtml(content), [content]);
+  // 延迟渲染预览，避免输入时卡顿
+  const [debouncedContent, setDebouncedContent] = useState('');
+  const previewDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  
+  useEffect(() => {
+    if (editorMode === 'edit') {
+      // 纯编辑模式不需要更新预览
+      return;
+    }
+    
+    if (previewDebounceRef.current) {
+      clearTimeout(previewDebounceRef.current);
+    }
+    
+    previewDebounceRef.current = setTimeout(() => {
+      setDebouncedContent(content);
+    }, 300); // 300ms 延迟更新预览
+    
+    return () => {
+      if (previewDebounceRef.current) {
+        clearTimeout(previewDebounceRef.current);
+      }
+    };
+  }, [content, editorMode]);
+
+  // Convert markdown to HTML for preview - 使用延迟的内容
+  const previewHtml = useMemo(() => markdownToHtml(debouncedContent), [debouncedContent]);
 
   // 检查笔记是否需要解锁
   useEffect(() => {
+    // 清理之前的保存定时器
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    pendingUpdatesRef.current = {};
+    
     if (note) {
       if (note.isPasswordProtected && !isNoteUnlocked(note.id)) {
         setIsLocked(true);
@@ -120,16 +152,25 @@ export function Editor({ onBack }: EditorProps) {
         setIsLocked(false);
         setContent(note.content);
         setTitle(note.title);
+        setDebouncedContent(note.content);
         loadVersions(note.id);
         loadShares(note.id);
       }
     } else {
       setContent('');
       setTitle('');
+      setDebouncedContent('');
       setVersions([]);
       setShares([]);
       setIsLocked(false);
     }
+    
+    // 组件卸载时清理
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [note?.id, note?.isPasswordProtected]);
 
   const loadVersions = async (noteId: string) => {
@@ -161,22 +202,33 @@ export function Editor({ onBack }: EditorProps) {
     }
   };
 
-  // 防抖保存
+  // 待保存的更新缓存
+  const pendingUpdatesRef = useRef<{ title?: string; content?: string }>({});
+  
+  // 防抖保存 - 增加到 2 秒，合并多次更新
   const debouncedSave = useCallback(
     (noteId: string, updates: { title?: string; content?: string }) => {
+      // 合并更新
+      pendingUpdatesRef.current = { ...pendingUpdatesRef.current, ...updates };
+      
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
       saveTimeoutRef.current = setTimeout(async () => {
+        const pendingUpdates = pendingUpdatesRef.current;
+        pendingUpdatesRef.current = {};
+        
+        if (Object.keys(pendingUpdates).length === 0) return;
+        
         setIsSaving(true);
         try {
-          await updateEncryptedNote(noteId, updates);
+          await updateEncryptedNote(noteId, pendingUpdates);
         } catch (error) {
           console.error('Failed to save note:', error);
         } finally {
           setIsSaving(false);
         }
-      }, 1000);
+      }, 2000); // 增加到 2 秒
     },
     [updateEncryptedNote]
   );
@@ -275,7 +327,7 @@ export function Editor({ onBack }: EditorProps) {
     const newTitle = e.target.value;
     setTitle(newTitle);
     if (note) {
-      updateNote(note.id, { title: newTitle });
+      // 只更新本地状态，不触发 store 更新
       debouncedSave(note.id, { title: newTitle });
     }
   };
@@ -284,7 +336,7 @@ export function Editor({ onBack }: EditorProps) {
     const newContent = e.target.value;
     setContent(newContent);
     if (note) {
-      updateNote(note.id, { content: newContent });
+      // 只更新本地状态，不触发 store 更新
       debouncedSave(note.id, { content: newContent });
     }
   };
