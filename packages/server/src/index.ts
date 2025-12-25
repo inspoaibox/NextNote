@@ -6,6 +6,7 @@ import { Server } from 'socket.io';
 import routes from './routes';
 import { errorHandler } from './middleware/error';
 import { initSyncHandler } from './socket/sync-handler';
+import { apiRateLimit } from './middleware/rate-limit';
 
 const app = express();
 const httpServer = createServer(app);
@@ -23,16 +24,31 @@ initSyncHandler(io);
 const PORT = process.env.PORT || 4000;
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'", 'ws:', 'wss:'],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
 
-// Request logging
+// 全局速率限制
+app.use('/api', apiRateLimit());
+
+// Request logging (不记录敏感信息)
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+  const sanitizedPath = req.path.replace(/\/[a-f0-9-]{36}/gi, '/:id');
+  console.log(`${new Date().toISOString()} ${req.method} ${sanitizedPath}`);
   next();
 });
 

@@ -6,7 +6,9 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { generateToken, authenticate, type AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler, ValidationError, AuthenticationError, NotFoundError } from '../middleware/error';
+import { strictRateLimit } from '../middleware/rate-limit';
 import type { RegisterRequest, LoginRequest } from '@secure-notebook/shared';
+import { isValidEmail, encryptIpAddress, checkLoginAttempt, recordLoginAttempt } from '../utils/security';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -37,12 +39,17 @@ router.get('/system-info', asyncHandler(async (_req, res) => {
  * 注册
  * POST /api/auth/register
  */
-router.post('/register', asyncHandler(async (req, res) => {
+router.post('/register', strictRateLimit(), asyncHandler(async (req, res) => {
   const body = req.body as RegisterRequest;
   
   // 验证必填字段
   if (!body.email || !body.encryptedKEK || !body.salt || !body.recoveryKeyHash) {
     throw new ValidationError('Missing required fields');
+  }
+  
+  // 验证邮箱格式
+  if (!isValidEmail(body.email)) {
+    throw new ValidationError('Invalid email format');
   }
   
   // 获取系统设置
@@ -118,8 +125,8 @@ router.post('/register', asyncHandler(async (req, res) => {
       userId: user.id,
       action: 'register',
       deviceId: device.id,
-      encryptedIpAddress: req.ip || 'unknown',
-      userAgent: req.headers['user-agent'] || 'unknown',
+      encryptedIpAddress: encryptIpAddress(req.ip || 'unknown'),
+      userAgent: req.headers['user-agent']?.slice(0, 500) || 'unknown',
     },
   });
   
@@ -135,11 +142,18 @@ router.post('/register', asyncHandler(async (req, res) => {
  * 登录
  * POST /api/auth/login
  */
-router.post('/login', asyncHandler(async (req, res) => {
+router.post('/login', strictRateLimit(), asyncHandler(async (req, res) => {
   const body = req.body as LoginRequest;
   
   if (!body.email) {
     throw new ValidationError('Email is required');
+  }
+  
+  // 检查登录尝试限制
+  const loginCheck = checkLoginAttempt(body.email);
+  if (!loginCheck.allowed) {
+    const waitMinutes = Math.ceil((loginCheck.lockedUntil! - Date.now()) / 60000);
+    throw new AuthenticationError(`Too many login attempts. Please try again in ${waitMinutes} minutes.`);
   }
   
   // 查找用户
@@ -148,13 +162,18 @@ router.post('/login', asyncHandler(async (req, res) => {
   });
   
   if (!user) {
+    recordLoginAttempt(body.email, false);
     throw new AuthenticationError('Invalid credentials');
   }
   
   // 检查用户是否被禁用
   if (!user.isActive) {
+    recordLoginAttempt(body.email, false);
     throw new AuthenticationError('Account is disabled');
   }
+  
+  // 记录成功登录
+  recordLoginAttempt(body.email, true);
   
   // 查找或创建设备
   let device = await prisma.device.findFirst({
@@ -195,8 +214,8 @@ router.post('/login', asyncHandler(async (req, res) => {
       userId: user.id,
       action: 'login',
       deviceId: device.id,
-      encryptedIpAddress: req.ip || 'unknown',
-      userAgent: req.headers['user-agent'] || 'unknown',
+      encryptedIpAddress: encryptIpAddress(req.ip || 'unknown'),
+      userAgent: req.headers['user-agent']?.slice(0, 500) || 'unknown',
       metadata: { isNewDevice },
     },
   });
@@ -270,8 +289,8 @@ router.post('/change-password', authenticate, asyncHandler(async (req, res) => {
       userId: authReq.user!.userId,
       action: 'password_change',
       deviceId: authReq.user!.deviceId,
-      encryptedIpAddress: req.ip || 'unknown',
-      userAgent: req.headers['user-agent'] || 'unknown',
+      encryptedIpAddress: encryptIpAddress(req.ip || 'unknown'),
+      userAgent: req.headers['user-agent']?.slice(0, 500) || 'unknown',
     },
   });
   
@@ -299,8 +318,8 @@ router.post('/revoke-all', authenticate, asyncHandler(async (req, res) => {
       userId: authReq.user!.userId,
       action: 'session_revoke',
       deviceId: authReq.user!.deviceId,
-      encryptedIpAddress: req.ip || 'unknown',
-      userAgent: req.headers['user-agent'] || 'unknown',
+      encryptedIpAddress: encryptIpAddress(req.ip || 'unknown'),
+      userAgent: req.headers['user-agent']?.slice(0, 500) || 'unknown',
     },
   });
   

@@ -9,6 +9,7 @@ import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from
 import type { CreateNoteRequest, UpdateNoteRequest } from '@secure-notebook/shared';
 import { io } from '../index';
 import { broadcastSyncEvent } from '../socket/sync-handler';
+import { secureCompare } from '../utils/security';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -659,7 +660,7 @@ router.post('/:id/password/verify', asyncHandler(async (req, res) => {
     throw new AuthorizationError('Access denied');
   }
   
-  const isValid = note.passwordHash === passwordHash;
+  const isValid = note.passwordHash ? secureCompare(note.passwordHash, passwordHash) : false;
   
   res.json({ valid: isValid });
 }));

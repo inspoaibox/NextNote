@@ -9,6 +9,7 @@ import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from
 import type { CreateFolderRequest, UpdateFolderRequest } from '@secure-notebook/shared';
 import { io } from '../index';
 import { broadcastSyncEvent } from '../socket/sync-handler';
+import { secureCompare } from '../utils/security';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -420,7 +421,7 @@ router.post('/:id/password/verify', asyncHandler(async (req, res) => {
     throw new AuthorizationError('Access denied');
   }
   
-  const isValid = folder.passwordHash === passwordHash;
+  const isValid = folder.passwordHash ? secureCompare(folder.passwordHash, passwordHash) : false;
   
   res.json({ valid: isValid });
 }));

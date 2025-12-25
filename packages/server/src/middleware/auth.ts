@@ -6,7 +6,14 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import type { JWTPayload } from '@secure-notebook/shared';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// 生产环境必须设置 JWT_SECRET
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET environment variable must be set in production');
+}
+
+const EFFECTIVE_JWT_SECRET = JWT_SECRET || 'dev-secret-only-for-development';
 
 export interface AuthenticatedRequest extends Request {
   user?: JWTPayload;
@@ -30,7 +37,7 @@ export function authenticate(
   const token = authHeader.substring(7);
   
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const payload = jwt.verify(token, EFFECTIVE_JWT_SECRET) as JWTPayload;
     req.user = payload;
     next();
   } catch (error) {
@@ -42,7 +49,7 @@ export function authenticate(
  * 生成JWT令牌
  */
 export function generateToken(payload: Omit<JWTPayload, 'exp' | 'iat'>): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, EFFECTIVE_JWT_SECRET, { expiresIn: '7d' });
 }
 
 /**
@@ -50,7 +57,7 @@ export function generateToken(payload: Omit<JWTPayload, 'exp' | 'iat'>): string 
  */
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload;
+    return jwt.verify(token, EFFECTIVE_JWT_SECRET) as JWTPayload;
   } catch {
     return null;
   }

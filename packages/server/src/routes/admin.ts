@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, type AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler, ValidationError, AuthorizationError } from '../middleware/error';
+import { sanitizeInput } from '../utils/security';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -63,24 +64,29 @@ router.put('/settings', asyncHandler(async (req, res) => {
     maintenanceMessage,
   } = req.body;
 
+  // 输入验证和清理
+  const cleanSiteName = siteName ? sanitizeInput(String(siteName).slice(0, 100)) : undefined;
+  const cleanSiteDescription = siteDescription ? sanitizeInput(String(siteDescription).slice(0, 500)) : undefined;
+  const cleanMaintenanceMessage = maintenanceMessage ? sanitizeInput(String(maintenanceMessage).slice(0, 500)) : undefined;
+
   const settings = await prisma.systemSettings.upsert({
     where: { id: 'system' },
     update: {
-      siteName: siteName !== undefined ? siteName : undefined,
-      siteDescription: siteDescription !== undefined ? siteDescription : undefined,
-      allowRegistration: allowRegistration !== undefined ? allowRegistration : undefined,
-      maxUsersLimit: maxUsersLimit !== undefined ? maxUsersLimit : undefined,
-      maintenanceMode: maintenanceMode !== undefined ? maintenanceMode : undefined,
-      maintenanceMessage: maintenanceMessage !== undefined ? maintenanceMessage : undefined,
+      siteName: cleanSiteName,
+      siteDescription: cleanSiteDescription,
+      allowRegistration: allowRegistration !== undefined ? Boolean(allowRegistration) : undefined,
+      maxUsersLimit: maxUsersLimit !== undefined ? Math.max(0, parseInt(maxUsersLimit) || 0) : undefined,
+      maintenanceMode: maintenanceMode !== undefined ? Boolean(maintenanceMode) : undefined,
+      maintenanceMessage: cleanMaintenanceMessage,
     },
     create: {
       id: 'system',
-      siteName: siteName || 'Secure Notebook',
-      siteDescription: siteDescription || 'End-to-end encrypted note-taking app',
+      siteName: cleanSiteName || 'Secure Notebook',
+      siteDescription: cleanSiteDescription || 'End-to-end encrypted note-taking app',
       allowRegistration: allowRegistration ?? true,
-      maxUsersLimit: maxUsersLimit ?? 0,
+      maxUsersLimit: maxUsersLimit !== undefined ? Math.max(0, parseInt(maxUsersLimit) || 0) : 0,
       maintenanceMode: maintenanceMode ?? false,
-      maintenanceMessage,
+      maintenanceMessage: cleanMaintenanceMessage,
     },
   });
 

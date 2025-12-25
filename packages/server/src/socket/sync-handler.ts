@@ -27,6 +27,14 @@ const userSockets = new Map<string, Set<string>>();
  * 初始化 Socket.IO 同步处理
  */
 export function initSyncHandler(io: Server) {
+  const JWT_SECRET = process.env.JWT_SECRET;
+  
+  if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable must be set in production');
+  }
+  
+  const EFFECTIVE_JWT_SECRET = JWT_SECRET || 'dev-secret-only-for-development';
+
   // 认证中间件
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
@@ -35,8 +43,7 @@ export function initSyncHandler(io: Server) {
     }
 
     try {
-      const secret = process.env.JWT_SECRET || 'dev-secret';
-      const payload = jwt.verify(token, secret) as AuthPayload;
+      const payload = jwt.verify(token, EFFECTIVE_JWT_SECRET) as AuthPayload;
       socket.data.userId = payload.userId;
       socket.data.deviceId = payload.deviceId;
       next();
