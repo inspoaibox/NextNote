@@ -73,6 +73,13 @@ export function Editor({ onBack }: EditorProps) {
   } = useNoteStore();
   
   const note = getSelectedNote();
+  
+  // 同步计算锁定状态，避免闪烁
+  const isLocked = useMemo(() => {
+    if (!note) return false;
+    return note.isPasswordProtected && !isNoteUnlocked(note.id);
+  }, [note, isNoteUnlocked]);
+  
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
   const [showVersionHistory, setShowVersionHistory] = useState(false);
@@ -84,7 +91,6 @@ export function Editor({ onBack }: EditorProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [versions, setVersions] = useState<NoteVersion[]>([]);
   const [shares, setShares] = useState<ShareInfo[]>([]);
-  const [isLocked, setIsLocked] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
@@ -110,12 +116,11 @@ export function Editor({ onBack }: EditorProps) {
 
     if (note) {
       currentNoteIdRef.current = note.id;
-      if (note.isPasswordProtected && !isNoteUnlocked(note.id)) {
-        setIsLocked(true);
-        setUnlockPassword('');
-        setUnlockError('');
-      } else {
-        setIsLocked(false);
+      // 重置解锁表单
+      setUnlockPassword('');
+      setUnlockError('');
+      
+      if (!isLocked) {
         setContent(note.content);
         setTitle(note.title);
         setHasUnsavedChanges(false);
@@ -128,7 +133,6 @@ export function Editor({ onBack }: EditorProps) {
       setTitle('');
       setVersions([]);
       setShares([]);
-      setIsLocked(false);
       setHasUnsavedChanges(false);
     }
 
@@ -137,7 +141,7 @@ export function Editor({ onBack }: EditorProps) {
         clearTimeout(cloudSyncTimeoutRef.current);
       }
     };
-  }, [note?.id, note?.isPasswordProtected, isNoteUnlocked]);
+  }, [note?.id, isLocked]);
 
   const loadVersions = async (noteId: string) => {
     const result = await apiService.getNoteVersions(noteId);
@@ -394,7 +398,6 @@ export function Editor({ onBack }: EditorProps) {
     } else if (passwordMode === 'verify') {
       const valid = await verifyNotePassword(note.id, password);
       if (valid) {
-        setIsLocked(false);
         setContent(note.content);
         setTitle(note.title);
         loadVersions(note.id);
@@ -410,7 +413,6 @@ export function Editor({ onBack }: EditorProps) {
     setShowPasswordDialog(false);
     if (passwordMode === 'verify' && isLocked) {
       selectNote(null);
-      setIsLocked(false);
     }
   };
 
@@ -420,9 +422,10 @@ export function Editor({ onBack }: EditorProps) {
     
     const valid = await verifyNotePassword(note.id, unlockPassword);
     if (valid) {
-      setIsLocked(false);
+      // 解锁成功后，isNoteUnlocked 会返回 true，isLocked 会自动变为 false
       setUnlockPassword('');
       setUnlockError('');
+      // 加载笔记内容
       setContent(note.content);
       setTitle(note.title);
       loadVersions(note.id);
