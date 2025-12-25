@@ -1,33 +1,49 @@
+/* Note List - Commercial Grade Design */
 .noteList {
   width: var(--note-list-width);
   height: 100vh;
   background-color: var(--color-bg-primary);
-  border-right: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border-light);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
 }
 
 .header {
-  padding: var(--spacing-3);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--spacing-4);
+  border-bottom: 1px solid var(--color-border-light);
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-2);
+  gap: var(--spacing-3);
+  background: var(--color-bg-primary);
 }
 
+/* Search */
 .searchWrapper {
   display: flex;
   align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-2) var(--spacing-3);
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
   background-color: var(--color-bg-secondary);
-  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-fast);
+}
+
+.searchWrapper:focus-within {
+  background-color: var(--color-bg-primary);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .searchIcon {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+
+.searchWrapper:focus-within .searchIcon {
+  color: var(--color-primary);
 }
 
 .searchInput {
@@ -43,26 +59,60 @@
   color: var(--color-text-muted);
 }
 
+.clearSearch {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--spacing-1);
+  font-size: var(--font-size-sm);
+  line-height: 1;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.clearSearch:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+/* New Note Button */
 .newNoteButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-1);
-  padding: var(--spacing-2);
-  background-color: var(--color-primary);
-  color: white;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3);
+  background: var(--gradient-primary);
+  color: var(--color-text-inverse);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: background-color var(--transition-fast);
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm), var(--shadow-primary);
 }
 
 .newNoteButton:hover {
-  background-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md), var(--shadow-primary);
 }
 
+.newNoteButton:active {
+  transform: translateY(0);
+}
+
+.newNoteIcon {
+  font-size: var(--font-size-base);
+}
+
+/* Note List */
 .list {
   flex: 1;
   overflow-y: auto;
@@ -73,20 +123,34 @@
 }
 
 .sectionTitle {
-  padding: var(--spacing-2) var(--spacing-3);
+  padding: var(--spacing-2) var(--spacing-4);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
+/* Note Item */
 .noteItem {
   width: 100%;
   display: flex;
   align-items: stretch;
-  border-bottom: 1px solid var(--color-border);
-  transition: background-color var(--transition-fast);
+  border-bottom: 1px solid var(--color-border-light);
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.noteItem::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--color-primary);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .noteItem:hover {
@@ -97,43 +161,27 @@
   background-color: var(--color-primary-light);
 }
 
+.noteItem.selected::before {
+  opacity: 1;
+}
+
 .noteContent {
   flex: 1;
-  padding: var(--spacing-3);
+  padding: var(--spacing-4);
   background: none;
   border: none;
   text-align: left;
   cursor: pointer;
 }
 
-.deleteButton {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0 var(--spacing-2);
-  background: none;
-  border: none;
-  cursor: pointer;
-  opacity: 0.5;
-  transition: opacity var(--transition-fast);
-}
-
-.noteItem:hover .deleteButton {
-  display: flex;
-}
-
-.deleteButton:hover {
-  opacity: 1;
-}
-
 .noteTitle {
   display: flex;
   align-items: center;
-  gap: var(--spacing-1);
+  gap: var(--spacing-2);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  margin-bottom: var(--spacing-1);
+  margin-bottom: var(--spacing-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -141,23 +189,24 @@
 
 .lockIcon {
   font-size: var(--font-size-xs);
+  color: var(--color-warning);
 }
 
 .notePreview {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  line-height: var(--line-height-normal);
+  line-height: var(--line-height-relaxed);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-bottom: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
 }
 
 .noteMeta {
   display: flex;
   align-items: center;
-  gap: var(--spacing-2);
+  gap: var(--spacing-3);
 }
 
 .noteDate {
@@ -168,60 +217,69 @@
 .noteTags {
   display: flex;
   gap: var(--spacing-1);
+  flex-wrap: wrap;
 }
 
 .tag {
   font-size: var(--font-size-xs);
   color: var(--color-primary);
+  background: var(--color-primary-light);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-medium);
 }
 
+/* Delete Button */
+.deleteButton {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--spacing-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
+}
+
+.noteItem:hover .deleteButton {
+  display: flex;
+}
+
+.deleteButton:hover {
+  color: var(--color-error);
+  background: var(--color-error-light);
+}
+
+/* Empty State */
 .empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-8);
+  padding: var(--spacing-12);
   text-align: center;
 }
 
 .emptyIcon {
-  font-size: 48px;
+  font-size: 64px;
   margin-bottom: var(--spacing-4);
-  opacity: 0.5;
+  opacity: 0.3;
 }
 
 .emptyText {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-1);
+  margin: 0 0 var(--spacing-2);
 }
 
 .emptyHint {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
   margin: 0;
+  line-height: var(--line-height-relaxed);
 }
-
-
-/* Clear search button */
-.clearSearch {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  padding: var(--spacing-1);
-  font-size: var(--font-size-xs);
-  line-height: 1;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
-}
-
-.clearSearch:hover {
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-}
-
 
 /* Mobile responsive */
 @media (max-width: 768px) {
@@ -241,7 +299,8 @@
     top: 0;
     background: var(--color-bg-primary);
     z-index: 10;
-    padding: var(--spacing-3) var(--spacing-4);
+    padding: var(--spacing-4);
+    box-shadow: var(--shadow-sm);
   }
   
   .mobileHeader {
@@ -257,17 +316,19 @@
     justify-content: center;
     width: 44px;
     height: 44px;
-    background: none;
+    background: var(--color-bg-secondary);
     border: none;
     font-size: var(--font-size-xl);
     color: var(--color-text-secondary);
     cursor: pointer;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     -webkit-tap-highlight-color: transparent;
+    transition: all var(--transition-fast);
   }
   
   .menuButton:active {
     background-color: var(--color-bg-tertiary);
+    transform: scale(0.95);
   }
   
   .mobileTitle {
@@ -278,7 +339,7 @@
   }
   
   .searchWrapper {
-    padding: var(--spacing-3);
+    padding: var(--spacing-3) var(--spacing-4);
   }
   
   .searchInput {
@@ -286,12 +347,12 @@
   }
   
   .newNoteButton {
-    padding: var(--spacing-3);
+    padding: var(--spacing-4);
     font-size: var(--font-size-base);
   }
   
   .noteItem {
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border-light);
   }
   
   .noteContent {

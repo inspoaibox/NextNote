@@ -1,10 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useFolderStore, useAuthStore } from '../../stores';
 import { useI18n } from '../../i18n';
 import { apiService } from '../../services';
 import { PasswordDialog } from '../password';
 import { SyncIndicator } from '../sync/SyncIndicator';
 import styles from './Sidebar.module.css';
+
+// 右键菜单状态
+interface ContextMenuState {
+  visible: boolean;
+  x: number;
+  y: number;
+  folderId: string;
+  folderName: string;
+  isProtected: boolean;
+  level: number;
+}
 
 interface SidebarProps {
   onOpenSettings?: () => void;
@@ -31,21 +42,71 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
   } = useFolderStore();
   const { logout } = useAuthStore();
   const folderTree = getFolderTree();
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [creatingFolderParentId, setCreatingFolderParentId] = useState<string | null | undefined>(undefined);
   const [newFolderName, setNewFolderName] = useState('');
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState('');
   const [passwordDialogFolder, setPasswordDialogFolder] = useState<{ id: string; isProtected: boolean } | null>(null);
   const [unlockDialogFolder, setUnlockDialogFolder] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+
+  // 关闭右键菜单
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  // 点击其他地方关闭菜单
+  useEffect(() => {
+    if (contextMenu) {
+      const handleClick = () => closeContextMenu();
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [contextMenu, closeContextMenu]);
+
+  // 处理右键菜单
+  const handleContextMenu = (
+    e: React.MouseEvent,
+    folderId: string,
+    folderName: string,
+    isProtected: boolean,
+    level: number
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      folderId,
+      folderName,
+      isProtected,
+      level,
+    });
+  };
+
+  const isCreatingFolder = creatingFolderParentId !== undefined;
+
+  const handleStartCreateFolder = (parentId: string | null = null) => {
+    setCreatingFolderParentId(parentId);
+    setNewFolderName('');
+    // 如果是创建子文件夹，自动展开父文件夹
+    if (parentId) {
+      const { expandedFolderIds, toggleFolderExpanded } = useFolderStore.getState();
+      if (!expandedFolderIds.has(parentId)) {
+        toggleFolderExpanded(parentId);
+      }
+    }
+  };
 
   const handleCreateFolder = async () => {
     if (newFolderName.trim()) {
       try {
-        console.log('Creating folder:', newFolderName.trim());
-        await createEncryptedFolder(newFolderName.trim(), null);
+        console.log('Creating folder:', newFolderName.trim(), 'parent:', creatingFolderParentId);
+        await createEncryptedFolder(newFolderName.trim(), creatingFolderParentId ?? null);
         console.log('Folder created successfully');
         setNewFolderName('');
-        setIsCreatingFolder(false);
+        setCreatingFolderParentId(undefined);
       } catch (error) {
         console.error('Failed to create folder:', error);
         alert(error instanceof Error ? error.message : 'Failed to create folder');
@@ -57,7 +118,7 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
     if (e.key === 'Enter') {
       handleCreateFolder();
     } else if (e.key === 'Escape') {
-      setIsCreatingFolder(false);
+      setCreatingFolderParentId(undefined);
       setNewFolderName('');
     }
   };
@@ -71,7 +132,6 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
     if (editingFolderId && editingFolderName.trim()) {
       try {
         updateFolder(editingFolderId, { name: editingFolderName.trim() });
-        // 尝试同步到服务器
         await apiService.updateFolder(editingFolderId, {});
       } catch (error) {
         console.error('Failed to update folder:', error);
@@ -94,9 +154,7 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
     if (!confirm(t('folders.deleteConfirm'))) return;
     try {
       deleteFolder(folderId);
-      // 尝试同步到服务器
       await apiService.deleteFolder(folderId);
-      // 如果删除的是当前选中的文件夹，切换到所有笔记
       if (selectedFolderId === folderId) {
         selectFolder(null);
       }
@@ -107,10 +165,8 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
 
   const handleLockClick = (folderId: string, isProtected: boolean) => {
     if (isProtected) {
-      // 已加密，显示移除密码对话框
       setPasswordDialogFolder({ id: folderId, isProtected: true });
     } else {
-      // 未加密，显示设置密码对话框
       setPasswordDialogFolder({ id: folderId, isProtected: false });
     }
   };
@@ -119,11 +175,9 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
     if (!passwordDialogFolder) return false;
 
     if (passwordDialogFolder.isProtected) {
-      // 验证密码后移除
       const success = await removeFolderPassword(passwordDialogFolder.id, password);
       return success;
     } else {
-      // 设置新密码
       const success = await setFolderPassword(passwordDialogFolder.id, password);
       return success;
     }
@@ -131,7 +185,6 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
 
   const handleFolderSelect = (folderId: string, isProtected: boolean) => {
     if (isProtected && !unlockedFolderIds.has(folderId)) {
-      // 需要解锁
       setUnlockDialogFolder(folderId);
     } else {
       selectFolder(folderId);
@@ -156,10 +209,49 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
     }
   };
 
+  // 渲染新建文件夹输入框
+  const renderNewFolderInput = (parentId: string | null, level: number = 0) => {
+    if (creatingFolderParentId !== parentId) return null;
+    
+    return (
+      <div className={styles.newFolderInput} style={{ marginLeft: `${level * 16}px` }}>
+        <span className={styles.newFolderIcon}>📁</span>
+        <input
+          type="text"
+          value={newFolderName}
+          onChange={(e) => setNewFolderName(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={t('folders.folderName')}
+          autoFocus
+        />
+        <button
+          onClick={handleCreateFolder}
+          className={styles.confirmButton}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          ✓
+        </button>
+        <button
+          onClick={() => {
+            setCreatingFolderParentId(undefined);
+            setNewFolderName('');
+          }}
+          className={styles.cancelButton}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          ✕
+        </button>
+      </div>
+    );
+  };
+
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
       <div className={styles.header}>
-        <h1 className={styles.logo}>Secure Notebook</h1>
+        <div className={styles.logoWrapper}>
+          <div className={styles.logoIcon}>🔐</div>
+          <h1 className={styles.logo}>Secure Notebook</h1>
+        </div>
         <button className={styles.closeButton} onClick={onClose} aria-label="Close sidebar">
           ✕
         </button>
@@ -179,45 +271,17 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
 
         <div className={styles.folderSection}>
           <div className={styles.sectionHeader}>
-            <span>{t('folders.title')}</span>
+            <span className={styles.sectionTitle}>{t('folders.title')}</span>
             <button
               className={styles.addButton}
               aria-label="Add folder"
-              onClick={() => setIsCreatingFolder(true)}
+              onClick={() => handleStartCreateFolder(null)}
             >
               +
             </button>
           </div>
 
-          {isCreatingFolder && (
-            <div className={styles.newFolderInput}>
-              <input
-                type="text"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={t('folders.folderName')}
-                autoFocus
-              />
-              <button
-                onClick={handleCreateFolder}
-                className={styles.confirmButton}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                ✓
-              </button>
-              <button
-                onClick={() => {
-                  setIsCreatingFolder(false);
-                  setNewFolderName('');
-                }}
-                className={styles.cancelButton}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                ✕
-              </button>
-            </div>
-          )}
+          {renderNewFolderInput(null, 0)}
 
           <div className={styles.folderList}>
             {folderTree.map((folder) => (
@@ -232,16 +296,22 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
                 onToggle={toggleFolderExpanded}
                 editingId={editingFolderId}
                 editingName={editingFolderName}
-                onEdit={handleEditFolder}
                 onEditChange={setEditingFolderName}
-                onEditSave={handleSaveEdit}
                 onEditKeyDown={handleEditKeyDown}
                 onEditCancel={() => {
                   setEditingFolderId(null);
                   setEditingFolderName('');
                 }}
-                onDelete={handleDeleteFolder}
-                onLock={handleLockClick}
+                onContextMenu={handleContextMenu}
+                creatingFolderParentId={creatingFolderParentId}
+                newFolderName={newFolderName}
+                onNewFolderNameChange={setNewFolderName}
+                onNewFolderKeyDown={handleKeyDown}
+                onNewFolderConfirm={handleCreateFolder}
+                onNewFolderCancel={() => {
+                  setCreatingFolderParentId(undefined);
+                  setNewFolderName('');
+                }}
               />
             ))}
           </div>
@@ -266,7 +336,6 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
         </button>
       </div>
 
-      {/* 密码设置/移除对话框 */}
       <PasswordDialog
         isOpen={!!passwordDialogFolder}
         onClose={() => setPasswordDialogFolder(null)}
@@ -274,7 +343,6 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
         onSubmit={handlePasswordSubmit}
       />
 
-      {/* 解锁对话框 */}
       <PasswordDialog
         isOpen={!!unlockDialogFolder}
         onClose={() => setUnlockDialogFolder(null)}
@@ -282,6 +350,58 @@ export function Sidebar({ onOpenSettings, onOpenAdmin, isOpen = true, onClose }:
         title={t('folders.unlockFolder')}
         onSubmit={handleUnlockSubmit}
       />
+
+      {/* 右键菜单 */}
+      {contextMenu && (
+        <div
+          className={styles.contextMenu}
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {contextMenu.level < 2 && (
+            <button
+              className={styles.contextMenuItem}
+              onClick={() => {
+                handleStartCreateFolder(contextMenu.folderId);
+                closeContextMenu();
+              }}
+            >
+              <span>➕</span>
+              {t('folders.addSubfolder')}
+            </button>
+          )}
+          <button
+            className={styles.contextMenuItem}
+            onClick={() => {
+              handleLockClick(contextMenu.folderId, contextMenu.isProtected);
+              closeContextMenu();
+            }}
+          >
+            <span>{contextMenu.isProtected ? '🔓' : '🔐'}</span>
+            {contextMenu.isProtected ? t('folders.removePassword') : t('folders.setPassword')}
+          </button>
+          <button
+            className={styles.contextMenuItem}
+            onClick={() => {
+              handleEditFolder(contextMenu.folderId, contextMenu.folderName);
+              closeContextMenu();
+            }}
+          >
+            <span>✏️</span>
+            {t('common.edit')}
+          </button>
+          <button
+            className={`${styles.contextMenuItem} ${styles.danger}`}
+            onClick={() => {
+              handleDeleteFolder(contextMenu.folderId);
+              closeContextMenu();
+            }}
+          >
+            <span>🗑️</span>
+            {t('common.delete')}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
@@ -296,13 +416,16 @@ interface FolderItemProps {
   onToggle: (id: string) => void;
   editingId: string | null;
   editingName: string;
-  onEdit: (id: string, name: string) => void;
   onEditChange: (name: string) => void;
-  onEditSave: () => void;
   onEditKeyDown: (e: React.KeyboardEvent) => void;
   onEditCancel: () => void;
-  onDelete: (id: string) => void;
-  onLock: (id: string, isProtected: boolean) => void;
+  onContextMenu: (e: React.MouseEvent, folderId: string, folderName: string, isProtected: boolean, level: number) => void;
+  creatingFolderParentId: string | null | undefined;
+  newFolderName: string;
+  onNewFolderNameChange: (name: string) => void;
+  onNewFolderKeyDown: (e: React.KeyboardEvent) => void;
+  onNewFolderConfirm: () => void;
+  onNewFolderCancel: () => void;
 }
 
 function FolderItem({
@@ -315,39 +438,48 @@ function FolderItem({
   onToggle,
   editingId,
   editingName,
-  onEdit,
   onEditChange,
-  onEditSave,
   onEditKeyDown,
   onEditCancel,
-  onDelete,
-  onLock,
+  onContextMenu,
+  creatingFolderParentId,
+  newFolderName,
+  onNewFolderNameChange,
+  onNewFolderKeyDown,
+  onNewFolderConfirm,
+  onNewFolderCancel,
 }: FolderItemProps) {
-  const { t } = useI18n();
   const isExpanded = expandedIds.has(folder.id);
   const hasChildren = folder.children.length > 0;
   const isEditing = editingId === folder.id;
   const isProtected = folder.isPasswordProtected;
   const isUnlocked = unlockedIds.has(folder.id);
+  const isCreatingSubfolder = creatingFolderParentId === folder.id;
+
+  const handleToggleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggle(folder.id);
+  };
+
+  const handleRightClick = (e: React.MouseEvent) => {
+    onContextMenu(e, folder.id, folder.name, isProtected, level);
+  };
 
   return (
     <div className={styles.folderItem}>
       <div
         className={`${styles.folderButton} ${selectedId === folder.id ? styles.active : ''}`}
-        style={{ paddingLeft: `${12 + level * 16}px` }}
+        onContextMenu={handleRightClick}
+        onClick={() => !isEditing && onSelect(folder.id, isProtected)}
       >
-        {hasChildren && (
-          <span
-            className={`${styles.expandIcon} ${isExpanded ? styles.expanded : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggle(folder.id);
-            }}
-          >
-            ▶
-          </span>
-        )}
-        <span className={styles.folderIcon} onClick={() => onSelect(folder.id, isProtected)}>
+        {/* 展开/折叠图标 */}
+        <span
+          className={`${styles.expandIcon} ${hasChildren || isCreatingSubfolder ? '' : styles.placeholder} ${isExpanded ? styles.expanded : ''}`}
+          onClick={hasChildren || isCreatingSubfolder ? handleToggleClick : undefined}
+        >
+          {(hasChildren || isCreatingSubfolder) ? '▶' : ''}
+        </span>
+        <span className={styles.folderIcon}>
           {isProtected ? (isUnlocked ? '🔓' : '🔒') : '📁'}
         </span>
         {isEditing ? (
@@ -358,52 +490,33 @@ function FolderItem({
             onChange={(e) => onEditChange(e.target.value)}
             onKeyDown={onEditKeyDown}
             onBlur={onEditCancel}
+            onClick={(e) => e.stopPropagation()}
             autoFocus
           />
         ) : (
-          <span className={styles.folderName} onClick={() => onSelect(folder.id, isProtected)}>
-            {folder.name}
-          </span>
+          <span className={styles.folderName}>{folder.name}</span>
         )}
         {folder.noteCount > 0 && !isEditing && <span className={styles.noteCount}>{folder.noteCount}</span>}
-        {!isEditing && (
-          <div className={styles.folderActions}>
-            <button
-              className={styles.folderActionButton}
-              onClick={(e) => {
-                e.stopPropagation();
-                onLock(folder.id, isProtected);
-              }}
-              title={isProtected ? t('folders.removePassword') : t('folders.setPassword')}
-            >
-              {isProtected ? '🔓' : '🔐'}
-            </button>
-            <button
-              className={styles.folderActionButton}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(folder.id, folder.name);
-              }}
-              title={t('common.edit')}
-            >
-              ✏️
-            </button>
-            <button
-              className={styles.folderActionButton}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(folder.id);
-              }}
-              title={t('common.delete')}
-            >
-              🗑️
-            </button>
-          </div>
-        )}
       </div>
 
-      {hasChildren && isExpanded && (
+      {/* 子文件夹 */}
+      {(hasChildren || isCreatingSubfolder) && isExpanded && (
         <div className={styles.children}>
+          {isCreatingSubfolder && (
+            <div className={styles.newFolderInput}>
+              <span className={styles.newFolderIcon}>📁</span>
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => onNewFolderNameChange(e.target.value)}
+                onKeyDown={onNewFolderKeyDown}
+                placeholder="文件夹名称"
+                autoFocus
+              />
+              <button onClick={onNewFolderConfirm} className={styles.confirmButton} onMouseDown={(e) => e.preventDefault()}>✓</button>
+              <button onClick={onNewFolderCancel} className={styles.cancelButton} onMouseDown={(e) => e.preventDefault()}>✕</button>
+            </div>
+          )}
           {folder.children.map((child) => (
             <FolderItem
               key={child.id}
@@ -416,13 +529,16 @@ function FolderItem({
               onToggle={onToggle}
               editingId={editingId}
               editingName={editingName}
-              onEdit={onEdit}
               onEditChange={onEditChange}
-              onEditSave={onEditSave}
               onEditKeyDown={onEditKeyDown}
               onEditCancel={onEditCancel}
-              onDelete={onDelete}
-              onLock={onLock}
+              onContextMenu={onContextMenu}
+              creatingFolderParentId={creatingFolderParentId}
+              newFolderName={newFolderName}
+              onNewFolderNameChange={onNewFolderNameChange}
+              onNewFolderKeyDown={onNewFolderKeyDown}
+              onNewFolderConfirm={onNewFolderConfirm}
+              onNewFolderCancel={onNewFolderCancel}
             />
           ))}
         </div>

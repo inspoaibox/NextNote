@@ -75,6 +75,7 @@ export const zh = {
     lockFolder: '锁定文件夹',
     setPassword: '设置密码',
     removePassword: '移除密码',
+    addSubfolder: '添加子文件夹',
   },
   editor: {
     placeholder: '开始用 Markdown 写作...',

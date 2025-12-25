@@ -75,6 +75,7 @@ export const en = {
     lockFolder: 'Lock Folder',
     setPassword: 'Set Password',
     removePassword: 'Remove Password',
+    addSubfolder: 'Add Subfolder',
   },
   editor: {
     placeholder: 'Start writing in Markdown...',

@@ -55,12 +55,15 @@ export function RegisterPage({ onRegister, onSwitchToLogin }: RegisterPageProps)
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.header}>
-          <h1 className={styles.logo}>🔐 Secure Notebook</h1>
+          <div className={styles.logoWrapper}>
+            <div className={styles.logoIcon}>🔐</div>
+            <h1 className={styles.logo}>Secure Notebook</h1>
+          </div>
           <p className={styles.subtitle}>{t('auth.registerTitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
-          {error && <div className={styles.error}>{error}</div>}
+          {error && <div className={styles.error}>⚠️ {error}</div>}
 
           <Input
             label={t('auth.email')}
@@ -109,13 +112,14 @@ export function RegisterPage({ onRegister, onSwitchToLogin }: RegisterPageProps)
         size="md"
       >
         <div className={styles.recoveryModal}>
-          <p className={styles.recoveryWarning}>
-            This is your account recovery key. Write it down and store it in a safe place.
-            You will need it to recover your account if you forget your password.
-          </p>
-          <p className={styles.recoveryWarning}>
-            <strong>This key will only be shown once!</strong>
-          </p>
+          <div className={styles.recoveryWarning}>
+            <span className={styles.warningIcon}>⚠️</span>
+            <div>
+              <p>This is your account recovery key. Write it down and store it in a safe place.
+              You will need it to recover your account if you forget your password.</p>
+              <p><strong>This key will only be shown once!</strong></p>
+            </div>
+          </div>
 
           <div className={styles.recoveryKeyBox}>
             {recoveryKey?.map((word, index) => (
@@ -128,10 +132,10 @@ export function RegisterPage({ onRegister, onSwitchToLogin }: RegisterPageProps)
 
           <div className={styles.recoveryActions}>
             <Button variant="secondary" onClick={handleCopyRecoveryKey}>
-              Copy to Clipboard
+              📋 Copy to Clipboard
             </Button>
             <Button variant="primary" onClick={() => setShowRecoveryModal(false)}>
-              I've Saved My Recovery Key
+              ✓ I've Saved My Recovery Key
             </Button>
           </div>
         </div>

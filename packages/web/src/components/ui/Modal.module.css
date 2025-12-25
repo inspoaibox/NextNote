@@ -1,22 +1,25 @@
+/* Modal - Commercial Grade Design */
 .overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--color-bg-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--spacing-4);
-  z-index: 1000;
-  animation: fadeIn var(--transition-fast);
+  z-index: var(--z-modal-backdrop);
+  animation: fadeIn 0.2s ease-out;
+  backdrop-filter: blur(4px);
 }
 
 .content {
   background-color: var(--color-bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-2xl);
   max-height: calc(100vh - var(--spacing-8));
   overflow: auto;
-  animation: slideUp var(--transition-normal);
+  animation: scaleIn 0.25s ease-out;
+  border: 1px solid var(--color-border-light);
 }
 
 .sm {
@@ -34,12 +37,19 @@
   max-width: 720px;
 }
 
+.xl {
+  width: 100%;
+  max-width: 900px;
+}
+
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--spacing-4) var(--spacing-6);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--spacing-5) var(--spacing-6);
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
 }
 
 .title {
@@ -47,29 +57,83 @@
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0;
+  letter-spacing: var(--letter-spacing-tight);
 }
 
 .closeButton {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: none;
+  background: var(--color-bg-tertiary);
   border: none;
-  font-size: 24px;
+  font-size: 20px;
   color: var(--color-text-muted);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .closeButton:hover {
-  background-color: var(--color-bg-tertiary);
+  background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
+  transform: scale(1.05);
+}
+
+.closeButton:active {
+  transform: scale(0.95);
 }
 
 .body {
   padding: var(--spacing-6);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-6);
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg-secondary);
+  border-radius: 0 0 var(--radius-2xl) var(--radius-2xl);
+}
+
+/* Mobile responsive - keep modal centered, not bottom sheet */
+@media (max-width: 768px) {
+  .overlay {
+    padding: var(--spacing-4);
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .content {
+    max-height: calc(100vh - var(--spacing-8));
+    max-width: calc(100vw - var(--spacing-8));
+    border-radius: var(--radius-xl);
+    animation: scaleIn 0.25s ease-out;
+  }
+  
+  .sm, .md, .lg, .xl {
+    max-width: calc(100vw - var(--spacing-8));
+  }
+  
+  .header {
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding: var(--spacing-4);
+  }
+  
+  .body {
+    padding: var(--spacing-4);
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  
+  .footer {
+    padding: var(--spacing-4);
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  }
 }
 
 @keyframes fadeIn {
@@ -81,13 +145,13 @@
   }
 }
 
-@keyframes slideUp {
+@keyframes scaleIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1);
   }
 }

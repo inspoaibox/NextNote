@@ -34,12 +34,15 @@ export function LoginPage({ onLogin, onSwitchToRegister, onForgotPassword }: Log
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.header}>
-          <h1 className={styles.logo}>🔐 Secure Notebook</h1>
+          <div className={styles.logoWrapper}>
+            <div className={styles.logoIcon}>🔐</div>
+            <h1 className={styles.logo}>Secure Notebook</h1>
+          </div>
           <p className={styles.subtitle}>{t('auth.loginTitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
-          {error && <div className={styles.error}>{error}</div>}
+          {error && <div className={styles.error}>⚠️ {error}</div>}
 
           <Input
             label={t('auth.email')}
