@@ -5,11 +5,14 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, type AuthenticatedRequest } from '../middleware/auth';
-import { asyncHandler, ValidationError, AuthorizationError } from '../middleware/error';
-import { sanitizeInput } from '../utils/security';
+import { asyncHandler, ValidationError, AuthorizationError, NotFoundError } from '../middleware/error';
+import { sanitizeInput, isValidUUID } from '../utils/security';
 
 const router = Router();
 const prisma = new PrismaClient();
+
+// 有效的用户角色
+const VALID_ROLES = ['user', 'admin'];
 
 /**
  * 管理员权限中间件
@@ -99,11 +102,18 @@ router.put('/settings', asyncHandler(async (req, res) => {
  */
 router.get('/users', asyncHandler(async (req, res) => {
   const { page = '1', limit = '20', search } = req.query;
-  const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
-  const take = parseInt(limit as string);
+  
+  // 验证分页参数
+  const pageNum = Math.max(1, parseInt(page as string) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 20));
+  const skip = (pageNum - 1) * limitNum;
+  const take = limitNum;
+  
+  // 清理搜索参数
+  const cleanSearch = search ? sanitizeInput(String(search).slice(0, 100)) : undefined;
 
-  const where = search
-    ? { email: { contains: search as string, mode: 'insensitive' as const } }
+  const where = cleanSearch
+    ? { email: { contains: cleanSearch, mode: 'insensitive' as const } }
     : {};
 
   const [users, total] = await Promise.all([
@@ -132,14 +142,14 @@ router.get('/users', asyncHandler(async (req, res) => {
   ]);
 
   res.json({
-    users: users.map((u) => ({
+    users: users.map((u: typeof users[0]) => ({
       ...u,
       noteCount: u._count.notes,
       folderCount: u._count.folders,
       deviceCount: u._count.devices,
     })),
     total,
-    page: parseInt(page as string),
+    page: pageNum,
     totalPages: Math.ceil(total / take),
   });
 }));
@@ -153,9 +163,34 @@ router.put('/users/:id', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { role, isActive } = req.body;
 
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid user ID format');
+  }
+
   // 不能修改自己的角色
   if (id === authReq.user!.userId && role !== undefined) {
     throw new ValidationError('Cannot change your own role');
+  }
+
+  // 验证角色枚举
+  if (role !== undefined && !VALID_ROLES.includes(role)) {
+    throw new ValidationError('Invalid role. Must be: user or admin');
+  }
+
+  // 验证 isActive 类型
+  if (isActive !== undefined && typeof isActive !== 'boolean') {
+    throw new ValidationError('isActive must be a boolean');
+  }
+
+  // 检查用户是否存在
+  const existingUser = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+
+  if (!existingUser) {
+    throw new NotFoundError('User not found');
   }
 
   const user = await prisma.user.update({
@@ -185,9 +220,24 @@ router.delete('/users/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const authReq = req as AuthenticatedRequest;
 
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid user ID format');
+  }
+
   // 不能删除自己
   if (id === authReq.user!.userId) {
     throw new ValidationError('Cannot delete your own account');
+  }
+
+  // 检查用户是否存在
+  const existingUser = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+
+  if (!existingUser) {
+    throw new NotFoundError('User not found');
   }
 
   await prisma.user.delete({

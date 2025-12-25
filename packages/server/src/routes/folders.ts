@@ -9,7 +9,7 @@ import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from
 import type { CreateFolderRequest, UpdateFolderRequest } from '@secure-notebook/shared';
 import { io } from '../index';
 import { broadcastSyncEvent } from '../socket/sync-handler';
-import { secureCompare } from '../utils/security';
+import { secureCompare, isValidUUID, isValidEncryptedData } from '../utils/security';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -18,6 +18,17 @@ const prisma = new PrismaClient();
 router.use(authenticate);
 
 const MAX_FOLDER_DEPTH = 10;
+
+/**
+ * 验证 parentId 属于当前用户
+ */
+async function validateParentOwnership(parentId: string, userId: string): Promise<boolean> {
+  const folder = await prisma.folder.findUnique({
+    where: { id: parentId },
+    select: { userId: true },
+  });
+  return folder?.userId === userId;
+}
 
 /**
  * 获取文件夹深度
@@ -51,8 +62,23 @@ router.post('/', asyncHandler(async (req, res) => {
     throw new ValidationError('Missing required fields');
   }
   
-  // 检查深度限制
+  // 验证加密数据格式
+  if (!isValidEncryptedData(body.encryptedName)) {
+    throw new ValidationError('Invalid encrypted name format');
+  }
+  
+  // 验证 parentId 格式和所有权
   if (body.parentId) {
+    if (!isValidUUID(body.parentId)) {
+      throw new ValidationError('Invalid parent folder ID format');
+    }
+    
+    const parentOwned = await validateParentOwnership(body.parentId, authReq.user!.userId);
+    if (!parentOwned) {
+      throw new AuthorizationError('Parent folder access denied');
+    }
+    
+    // 检查深度限制
     const parentDepth = await getFolderDepth(body.parentId);
     if (parentDepth >= MAX_FOLDER_DEPTH) {
       throw new ValidationError('Maximum folder depth exceeded');
@@ -130,7 +156,7 @@ router.get('/', asyncHandler(async (req, res) => {
     ],
   });
   
-  res.json(folders.map((folder) => ({
+  res.json(folders.map((folder: typeof folders[0]) => ({
     id: folder.id,
     encryptedName: JSON.parse(folder.encryptedName),
     parentId: folder.parentId,
@@ -152,6 +178,11 @@ router.get('/', asyncHandler(async (req, res) => {
 router.get('/:id', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id } = req.params;
+  
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid folder ID format');
+  }
   
   const folder = await prisma.folder.findUnique({
     where: { id },
@@ -190,6 +221,21 @@ router.put('/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const body = req.body as UpdateFolderRequest;
   
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid folder ID format');
+  }
+  
+  // 验证加密数据格式（如果提供）
+  if (body.encryptedName && !isValidEncryptedData(body.encryptedName)) {
+    throw new ValidationError('Invalid encrypted name format');
+  }
+  
+  // 验证 order 类型
+  if (body.order !== undefined && (typeof body.order !== 'number' || body.order < 0)) {
+    throw new ValidationError('Invalid order value');
+  }
+  
   const existingFolder = await prisma.folder.findUnique({
     where: { id },
   });
@@ -202,9 +248,20 @@ router.put('/:id', asyncHandler(async (req, res) => {
     throw new AuthorizationError('Access denied');
   }
   
-  // 检查移动时的深度限制
+  // 检查移动时的深度限制和所有权
   if (body.parentId !== undefined && body.parentId !== existingFolder.parentId) {
     if (body.parentId) {
+      // 验证 parentId 格式
+      if (!isValidUUID(body.parentId)) {
+        throw new ValidationError('Invalid parent folder ID format');
+      }
+      
+      // 验证 parentId 所有权
+      const parentOwned = await validateParentOwnership(body.parentId, authReq.user!.userId);
+      if (!parentOwned) {
+        throw new AuthorizationError('Parent folder access denied');
+      }
+      
       const parentDepth = await getFolderDepth(body.parentId);
       if (parentDepth >= MAX_FOLDER_DEPTH) {
         throw new ValidationError('Maximum folder depth exceeded');
@@ -267,6 +324,11 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id } = req.params;
   
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid folder ID format');
+  }
+  
   const folder = await prisma.folder.findUnique({
     where: { id },
   });
@@ -286,9 +348,9 @@ router.delete('/:id', asyncHandler(async (req, res) => {
       select: { id: true },
     });
     
-    const childIds = children.map((c) => c.id);
+    const childIds = children.map((c: { id: string }) => c.id);
     const grandchildIds = await Promise.all(
-      childIds.map((childId) => getAllChildFolderIds(childId))
+      childIds.map((childId: string) => getAllChildFolderIds(childId))
     );
     
     return [...childIds, ...grandchildIds.flat()];
@@ -336,7 +398,12 @@ router.post('/:id/password', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { passwordHash } = req.body;
   
-  if (!passwordHash) {
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid folder ID format');
+  }
+  
+  if (!passwordHash || typeof passwordHash !== 'string') {
     throw new ValidationError('Password hash is required');
   }
   
@@ -372,6 +439,11 @@ router.delete('/:id/password', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id } = req.params;
   
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid folder ID format');
+  }
+  
   const folder = await prisma.folder.findUnique({
     where: { id },
   });
@@ -405,7 +477,12 @@ router.post('/:id/password/verify', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { passwordHash } = req.body;
   
-  if (!passwordHash) {
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid folder ID format');
+  }
+  
+  if (!passwordHash || typeof passwordHash !== 'string') {
     throw new ValidationError('Password hash is required');
   }
   

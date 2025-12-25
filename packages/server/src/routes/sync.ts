@@ -13,13 +13,49 @@ const prisma = new PrismaClient();
 
 router.use(authenticate);
 
+// 定义类型
+interface NoteWithTags {
+  id: string;
+  encryptedTitle: string;
+  encryptedContent: string;
+  encryptedDEK: string;
+  folderId: string | null;
+  isPinned: boolean;
+  pinnedAt: Date | null;
+  hasPassword: boolean;
+  syncVersion: number;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted?: boolean;
+  tags: { tag: string }[];
+}
+
+interface FolderData {
+  id: string;
+  encryptedName: string;
+  parentId: string | null;
+  order: number;
+  hasPassword: boolean;
+  syncVersion: number;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted?: boolean;
+}
+
 /**
  * 获取自上次同步以来的变更
  * GET /api/sync/changes?since=timestamp
  */
 router.get('/changes', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
-  const since = parseInt(req.query.since as string) || 0;
+  const sinceParam = req.query.since as string;
+  
+  // 验证 since 参数
+  const since = parseInt(sinceParam) || 0;
+  if (since < 0 || since > Date.now() + 86400000) { // 不能超过未来1天
+    throw new ValidationError('Invalid since timestamp');
+  }
+  
   const sinceDate = new Date(since);
 
   // 获取更新的笔记
@@ -65,14 +101,14 @@ router.get('/changes', asyncHandler(async (req, res) => {
   });
 
   res.json({
-    notes: notes.map(note => ({
+    notes: notes.map((note: NoteWithTags) => ({
       ...note,
       encryptedTitle: JSON.parse(note.encryptedTitle),
       encryptedContent: JSON.parse(note.encryptedContent),
       encryptedDEK: JSON.parse(note.encryptedDEK),
-      tags: note.tags.map(t => t.tag),
+      tags: note.tags.map((t: { tag: string }) => t.tag),
     })),
-    folders: folders.map(folder => ({
+    folders: folders.map((folder: FolderData) => ({
       ...folder,
       encryptedName: JSON.parse(folder.encryptedName),
     })),
@@ -126,14 +162,14 @@ router.get('/snapshot', asyncHandler(async (req, res) => {
   });
 
   res.json({
-    notes: notes.map(note => ({
+    notes: notes.map((note: NoteWithTags) => ({
       ...note,
       encryptedTitle: JSON.parse(note.encryptedTitle),
       encryptedContent: JSON.parse(note.encryptedContent),
       encryptedDEK: JSON.parse(note.encryptedDEK),
-      tags: note.tags.map(t => t.tag),
+      tags: note.tags.map((t: { tag: string }) => t.tag),
     })),
-    folders: folders.map(folder => ({
+    folders: folders.map((folder: FolderData) => ({
       ...folder,
       encryptedName: JSON.parse(folder.encryptedName),
     })),

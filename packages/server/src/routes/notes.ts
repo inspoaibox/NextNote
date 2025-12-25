@@ -9,13 +9,24 @@ import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from
 import type { CreateNoteRequest, UpdateNoteRequest } from '@secure-notebook/shared';
 import { io } from '../index';
 import { broadcastSyncEvent } from '../socket/sync-handler';
-import { secureCompare } from '../utils/security';
+import { secureCompare, isValidUUID, isValidTagsArray, isValidEncryptedData, isValidSharePermission, isValidEmail } from '../utils/security';
 
 const router = Router();
 const prisma = new PrismaClient();
 
 // 所有路由都需要认证
 router.use(authenticate);
+
+/**
+ * 验证 folderId 属于当前用户
+ */
+async function validateFolderOwnership(folderId: string, userId: string): Promise<boolean> {
+  const folder = await prisma.folder.findUnique({
+    where: { id: folderId },
+    select: { userId: true },
+  });
+  return folder?.userId === userId;
+}
 
 /**
  * 创建笔记
@@ -25,8 +36,32 @@ router.post('/', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const body = req.body as CreateNoteRequest;
   
+  // 验证必填字段
   if (!body.encryptedTitle || !body.encryptedContent || !body.encryptedDEK) {
     throw new ValidationError('Missing required fields');
+  }
+  
+  // 验证加密数据格式
+  if (!isValidEncryptedData(body.encryptedTitle) || 
+      !isValidEncryptedData(body.encryptedContent) || 
+      !isValidEncryptedData(body.encryptedDEK)) {
+    throw new ValidationError('Invalid encrypted data format');
+  }
+  
+  // 验证 folderId 格式和所有权
+  if (body.folderId) {
+    if (!isValidUUID(body.folderId)) {
+      throw new ValidationError('Invalid folder ID format');
+    }
+    const folderOwned = await validateFolderOwnership(body.folderId, authReq.user!.userId);
+    if (!folderOwned) {
+      throw new AuthorizationError('Folder access denied');
+    }
+  }
+  
+  // 验证标签数组
+  if (body.tags !== undefined && !isValidTagsArray(body.tags)) {
+    throw new ValidationError('Invalid tags format');
   }
   
   const note = await prisma.note.create({
@@ -38,7 +73,7 @@ router.post('/', asyncHandler(async (req, res) => {
       folderId: body.folderId || null,
       visibility: 'private',
       tags: body.tags ? {
-        create: body.tags.map((tag) => ({ tag })),
+        create: body.tags.map((tag: string) => ({ tag })),
       } : undefined,
     },
     include: {
@@ -59,7 +94,7 @@ router.post('/', asyncHandler(async (req, res) => {
       folderId: note.folderId,
       isPinned: note.isPinned,
       hasPassword: note.hasPassword,
-      tags: note.tags.map(t => t.tag),
+      tags: note.tags.map((t: { tag: string }) => t.tag),
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
     },
@@ -81,6 +116,11 @@ router.post('/', asyncHandler(async (req, res) => {
 router.get('/', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { folderId, includeDeleted } = req.query;
+  
+  // 验证 folderId 格式
+  if (folderId && folderId !== 'null' && !isValidUUID(folderId as string)) {
+    throw new ValidationError('Invalid folder ID format');
+  }
   
   const notes = await prisma.note.findMany({
     where: {
@@ -111,10 +151,10 @@ router.get('/', asyncHandler(async (req, res) => {
     ],
   });
   
-  res.json(notes.map((note) => ({
+  res.json(notes.map((note: typeof notes[0]) => ({
     ...note,
     encryptedTitle: JSON.parse(note.encryptedTitle),
-    tags: note.tags.map((t) => t.tag),
+    tags: note.tags.map((t: { tag: string }) => t.tag),
   })));
 }));
 
@@ -125,6 +165,11 @@ router.get('/', asyncHandler(async (req, res) => {
 router.get('/:id', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id } = req.params;
+  
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid note ID format');
+  }
   
   const note = await prisma.note.findUnique({
     where: { id },
@@ -146,7 +191,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     encryptedTitle: JSON.parse(note.encryptedTitle),
     encryptedContent: JSON.parse(note.encryptedContent),
     encryptedDEK: JSON.parse(note.encryptedDEK),
-    tags: note.tags.map((t) => t.tag),
+    tags: note.tags.map((t: { tag: string }) => t.tag),
   });
 }));
 
@@ -158,6 +203,38 @@ router.put('/:id', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id } = req.params;
   const body = req.body as UpdateNoteRequest;
+  
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid note ID format');
+  }
+  
+  // 验证加密数据格式（如果提供）
+  if (body.encryptedTitle && !isValidEncryptedData(body.encryptedTitle)) {
+    throw new ValidationError('Invalid encrypted title format');
+  }
+  if (body.encryptedContent && !isValidEncryptedData(body.encryptedContent)) {
+    throw new ValidationError('Invalid encrypted content format');
+  }
+  if (body.encryptedDEK && !isValidEncryptedData(body.encryptedDEK)) {
+    throw new ValidationError('Invalid encrypted DEK format');
+  }
+  
+  // 验证 folderId 格式和所有权
+  if (body.folderId !== undefined && body.folderId !== null) {
+    if (!isValidUUID(body.folderId)) {
+      throw new ValidationError('Invalid folder ID format');
+    }
+    const folderOwned = await validateFolderOwnership(body.folderId, authReq.user!.userId);
+    if (!folderOwned) {
+      throw new AuthorizationError('Folder access denied');
+    }
+  }
+  
+  // 验证标签数组
+  if (body.tags !== undefined && !isValidTagsArray(body.tags)) {
+    throw new ValidationError('Invalid tags format');
+  }
   
   const existingNote = await prisma.note.findUnique({
     where: { id },
@@ -191,7 +268,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
   if (versions.length > 0) {
     await prisma.noteVersion.deleteMany({
       where: {
-        id: { in: versions.map((v) => v.id) },
+        id: { in: versions.map((v: { id: string }) => v.id) },
       },
     });
   }
@@ -207,7 +284,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
       syncVersion: { increment: 1 },
       tags: body.tags ? {
         deleteMany: {},
-        create: body.tags.map((tag) => ({ tag })),
+        create: body.tags.map((tag: string) => ({ tag })),
       } : undefined,
     },
     include: {
@@ -228,7 +305,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
       folderId: note.folderId,
       isPinned: note.isPinned,
       hasPassword: note.hasPassword,
-      tags: note.tags.map(t => t.tag),
+      tags: note.tags.map((t: { tag: string }) => t.tag),
       updatedAt: note.updatedAt,
     },
     syncVersion: note.syncVersion,
@@ -249,6 +326,11 @@ router.put('/:id', asyncHandler(async (req, res) => {
 router.delete('/:id', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id } = req.params;
+  
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid note ID format');
+  }
   
   const note = await prisma.note.findUnique({
     where: { id },
@@ -301,6 +383,16 @@ router.post('/:id/pin', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { isPinned } = req.body;
   
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid note ID format');
+  }
+  
+  // 验证 isPinned 类型
+  if (typeof isPinned !== 'boolean') {
+    throw new ValidationError('isPinned must be a boolean');
+  }
+  
   const note = await prisma.note.findUnique({
     where: { id },
   });
@@ -332,6 +424,11 @@ router.post('/:id/pin', asyncHandler(async (req, res) => {
 router.get('/:id/versions', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id } = req.params;
+  
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid note ID format');
+  }
   
   const note = await prisma.note.findUnique({
     where: { id },
@@ -366,6 +463,11 @@ router.get('/:id/versions', asyncHandler(async (req, res) => {
 router.post('/:id/versions/:versionId/restore', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id, versionId } = req.params;
+  
+  // 验证 UUID 格式
+  if (!isValidUUID(id) || !isValidUUID(versionId)) {
+    throw new ValidationError('Invalid ID format');
+  }
   
   const note = await prisma.note.findUnique({
     where: { id },
@@ -418,6 +520,11 @@ router.get('/:id/versions/:versionId', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id, versionId } = req.params;
   
+  // 验证 UUID 格式
+  if (!isValidUUID(id) || !isValidUUID(versionId)) {
+    throw new ValidationError('Invalid ID format');
+  }
+  
   const note = await prisma.note.findUnique({
     where: { id },
   });
@@ -456,8 +563,23 @@ router.post('/:id/shares', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { recipientEmail, permission, encryptedShareKey } = req.body;
   
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid note ID format');
+  }
+  
   if (!recipientEmail || !permission || !encryptedShareKey) {
     throw new ValidationError('Missing required fields');
+  }
+  
+  // 验证邮箱格式
+  if (!isValidEmail(recipientEmail)) {
+    throw new ValidationError('Invalid email format');
+  }
+  
+  // 验证权限枚举
+  if (!isValidSharePermission(permission)) {
+    throw new ValidationError('Invalid permission value. Must be: read, write, or admin');
   }
   
   const note = await prisma.note.findUnique({
@@ -472,10 +594,20 @@ router.post('/:id/shares', asyncHandler(async (req, res) => {
     throw new AuthorizationError('Access denied');
   }
   
-  // 查找接收者用户（可选）
+  // 查找接收者用户
   const recipient = await prisma.user.findUnique({
     where: { email: recipientEmail },
   });
+  
+  // 防止自己分享给自己
+  const owner = await prisma.user.findUnique({
+    where: { id: authReq.user!.userId },
+    select: { email: true },
+  });
+  
+  if (owner?.email === recipientEmail) {
+    throw new ValidationError('Cannot share note with yourself');
+  }
   
   const share = await prisma.share.create({
     data: {
@@ -501,6 +633,11 @@ router.post('/:id/shares', asyncHandler(async (req, res) => {
 router.get('/:id/shares', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id } = req.params;
+  
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid note ID format');
+  }
   
   const note = await prisma.note.findUnique({
     where: { id },
@@ -537,6 +674,11 @@ router.get('/:id/shares', asyncHandler(async (req, res) => {
 router.delete('/:id/shares/:shareId', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id, shareId } = req.params;
+  
+  // 验证 UUID 格式
+  if (!isValidUUID(id) || !isValidUUID(shareId)) {
+    throw new ValidationError('Invalid ID format');
+  }
   
   const note = await prisma.note.findUnique({
     where: { id },
@@ -575,7 +717,12 @@ router.post('/:id/password', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { passwordHash } = req.body;
   
-  if (!passwordHash) {
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid note ID format');
+  }
+  
+  if (!passwordHash || typeof passwordHash !== 'string') {
     throw new ValidationError('Password hash is required');
   }
   
@@ -611,6 +758,11 @@ router.delete('/:id/password', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const { id } = req.params;
   
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid note ID format');
+  }
+  
   const note = await prisma.note.findUnique({
     where: { id },
   });
@@ -644,7 +796,12 @@ router.post('/:id/password/verify', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { passwordHash } = req.body;
   
-  if (!passwordHash) {
+  // 验证 UUID 格式
+  if (!isValidUUID(id)) {
+    throw new ValidationError('Invalid note ID format');
+  }
+  
+  if (!passwordHash || typeof passwordHash !== 'string') {
     throw new ValidationError('Password hash is required');
   }
   
