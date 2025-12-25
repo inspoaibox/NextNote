@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell, ipcMain, Menu, dialog } from 'electron';
 import * as path from 'path';
+import { registerStorageHandlers } from './storage';
 
 // 禁用硬件加速（可选，某些系统上可能需要）
 // app.disableHardwareAcceleration();
@@ -31,7 +32,8 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    // 生产环境加载构建后的文件
+    mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'));
   }
 
   // 外部链接在默认浏览器打开
@@ -132,7 +134,11 @@ if (!gotTheLock) {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  // 注册本地存储处理器
+  registerStorageHandlers();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

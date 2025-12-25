@@ -5,13 +5,11 @@
   "description": "Secure Notebook 桌面客户端",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "concurrently \"pnpm run dev:vite\" \"pnpm run dev:electron\"",
-    "dev:vite": "vite",
-    "dev:electron": "wait-on http://localhost:5173 && electron .",
-    "build": "tsc && vite build && electron-builder",
-    "build:win": "tsc && vite build && electron-builder --win",
-    "build:mac": "tsc && vite build && electron-builder --mac",
-    "build:linux": "tsc && vite build && electron-builder --linux",
+    "dev": "concurrently \"pnpm --filter @secure-notebook/web dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "pnpm --filter @secure-notebook/web build && tsc && node scripts/copy-web.js && electron-builder",
+    "build:win": "pnpm --filter @secure-notebook/web build && tsc && node scripts/copy-web.js && electron-builder --win",
+    "build:mac": "pnpm --filter @secure-notebook/web build && tsc && node scripts/copy-web.js && electron-builder --mac",
+    "build:linux": "pnpm --filter @secure-notebook/web build && tsc && node scripts/copy-web.js && electron-builder --linux",
     "clean": "rimraf dist release"
   },
   "build": {
@@ -53,20 +51,14 @@
       "createStartMenuShortcut": true
     }
   },
-  "dependencies": {
-    "@secure-notebook/shared": "workspace:*"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "@vitejs/plugin-react": "^4.2.0",
     "concurrently": "^8.2.0",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
     "rimraf": "^5.0.5",
     "typescript": "^5.3.0",
-    "vite": "^5.0.0",
     "wait-on": "^7.2.0"
   }
 }

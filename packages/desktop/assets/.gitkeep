@@ -1,0 +1,12 @@
+# 图标文件放置目录
+# 需要以下图标文件:
+# - icon.ico (Windows, 256x256)
+# - icon.icns (macOS)
+# - icon.png (Linux, 512x512)
+#
+# 可以使用以下工具生成:
+# - https://icoconvert.com/ (PNG to ICO)
+# - https://cloudconvert.com/png-to-icns (PNG to ICNS)
+#
+# 或者使用 electron-icon-builder:
+# npx electron-icon-builder --input=icon.png --output=./
